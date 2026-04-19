@@ -1,7 +1,9 @@
+
 "use client";
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { useApp } from '@/lib/store';
 import { 
@@ -16,7 +18,8 @@ import {
   Globe,
   FileText,
   User,
-  ArrowRight
+  ArrowRight,
+  CalendarDays
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -207,7 +210,6 @@ export default function ClientsPage() {
           })}
         </div>
 
-        {/* Client Detail Side Panel */}
         <Sheet open={!!selectedClient} onOpenChange={(open) => !open && setSelectedClient(null)}>
           <SheetContent className="sm:max-w-[600px] overflow-y-auto">
             {selectedClient && (
@@ -225,9 +227,16 @@ export default function ClientsPage() {
                       <Badge className="mb-2 bg-primary/20 text-primary border-primary/30 hover:bg-primary/30 backdrop-blur-sm">VIP Partner</Badge>
                       <h2 className="text-3xl font-bold">{selectedClient.businessName}</h2>
                     </div>
-                    <Button variant="destructive" size="icon" onClick={() => { deleteClient(selectedClient.id); setSelectedClient(null); }}>
-                      <Trash2 size={18} />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="secondary" size="icon" asChild title="Schedule Call">
+                        <Link href="/schedule">
+                          <CalendarDays size={18} />
+                        </Link>
+                      </Button>
+                      <Button variant="destructive" size="icon" onClick={() => { deleteClient(selectedClient.id); setSelectedClient(null); }}>
+                        <Trash2 size={18} />
+                      </Button>
+                    </div>
                   </div>
                 </div>
 

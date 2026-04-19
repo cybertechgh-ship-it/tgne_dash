@@ -17,7 +17,8 @@ import {
   Menu,
   Sun,
   Moon,
-  LogOut
+  LogOut,
+  CalendarDays
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ const navItems = [
   { name: 'Credentials', href: '/credentials', icon: KeyRound },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
   { name: 'Reminders', href: '/reminders', icon: Bell },
+  { name: 'Schedule', href: '/schedule', icon: CalendarDays },
 ];
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -41,7 +43,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { exportData, resetData, isAuthorized, logout } = useApp();
 
   useEffect(() => {
-    // Protection: Redirect to PIN page if not authorized
     if (!isAuthorized && pathname !== '/tgnes') {
       router.push('/tgnes');
     }
@@ -71,7 +72,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const logoUrl = "https://res.cloudinary.com/dwsl2ktt2/image/upload/v1776598078/download_kangs7.png";
 
-  // Prevent flash of content if not authorized
   if (!isAuthorized && pathname !== '/tgnes') {
     return (
       <div className="h-screen w-full bg-[#02040a] flex items-center justify-center">
@@ -82,7 +82,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
-      {/* Sidebar */}
       <aside className={cn(
         "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r transition-transform lg:translate-x-0 lg:static",
         mobileOpen ? "translate-x-0" : "-translate-x-full"
@@ -166,7 +165,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-16 border-b bg-card flex items-center justify-between px-6">
           <button className="lg:hidden p-2 text-muted-foreground" onClick={() => setMobileOpen(true)}>
@@ -198,7 +196,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      {/* Overlay for mobile sidebar */}
       {mobileOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -206,7 +203,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* AI Assistant Drawer */}
       <AIChat open={aiOpen} onClose={() => setAiOpen(false)} />
     </div>
   );
