@@ -122,7 +122,7 @@ export default function AdminPinPage() {
                   onChange={(e) => setPin(e.target.value)}
                   placeholder="••••••••"
                   className={cn(
-                    "relative h-16 bg-black/80 border-white/5 text-center text-3xl tracking-[0.8em] focus:ring-primary focus:border-primary/50 transition-all duration-500 placeholder:tracking-normal font-mono",
+                    "relative h-20 bg-black/80 border-white/5 text-center text-5xl text-white tracking-[0.6em] focus:ring-primary focus:border-primary/50 transition-all duration-500 placeholder:tracking-normal font-mono",
                     error && "border-red-500/50 focus:ring-red-500 focus:border-red-500",
                     "rounded-xl shadow-inner"
                   )}
