@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, 
@@ -58,6 +59,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const logoUrl = "https://res.cloudinary.com/dwsl2ktt2/image/upload/v1776598078/download_kangs7.png";
+
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       {/* Sidebar */}
@@ -66,9 +69,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         mobileOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
-          <div className="p-6 flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold">T</div>
-            <span className="text-xl font-bold font-headline text-primary">TGNE</span>
+          <div className="p-6 flex items-center gap-3">
+            <div className="relative w-10 h-10 overflow-hidden rounded-xl border bg-white flex items-center justify-center">
+              <Image 
+                src={logoUrl} 
+                alt="TGNE Logo" 
+                fill 
+                className="object-contain p-1"
+                priority
+              />
+            </div>
+            <span className="text-xl font-bold font-headline tracking-tight text-primary">TGNE</span>
           </div>
 
           <nav className="flex-1 px-4 space-y-1">
@@ -82,7 +93,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
                     pathname === item.href 
-                      ? "bg-primary text-primary-foreground" 
+                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" 
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >
@@ -97,8 +108,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <Button 
               variant="outline" 
               className={cn(
-                "w-full justify-start gap-3",
-                aiOpen && "bg-accent text-accent-foreground border-accent"
+                "w-full justify-start gap-3 rounded-xl border-primary/20 hover:border-primary/50 transition-all",
+                aiOpen && "bg-primary/10 text-primary border-primary"
               )}
               onClick={() => {
                 setAiOpen(!aiOpen);
@@ -144,8 +155,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <span className="text-sm font-medium">TGNE Admin</span>
               <span className="text-xs text-muted-foreground">Pro Account</span>
             </div>
-            <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white">
-              <Users size={20} />
+            <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white overflow-hidden border">
+               <Image 
+                src={logoUrl} 
+                alt="Profile" 
+                width={40} 
+                height={40} 
+                className="object-cover"
+              />
             </div>
           </div>
         </header>
