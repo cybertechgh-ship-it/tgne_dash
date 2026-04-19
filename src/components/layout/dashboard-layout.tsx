@@ -1,0 +1,143 @@
+"use client";
+
+import React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { 
+  LayoutDashboard, 
+  Users, 
+  KeyRound, 
+  CheckSquare, 
+  Bell, 
+  Bot, 
+  Download, 
+  RotateCcw,
+  Menu,
+  X
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { useApp } from '@/lib/store';
+import { AIChat } from '@/components/ai/ai-chat';
+
+const navItems = [
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Clients', href: '/clients', icon: Users },
+  { name: 'Credentials', href: '/credentials', icon: KeyRound },
+  { name: 'Tasks', href: '/tasks', icon: CheckSquare },
+  { name: 'Reminders', href: '/reminders', icon: Bell },
+];
+
+export function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [aiOpen, setAiOpen] = React.useState(false);
+  const { exportData, resetData } = useApp();
+
+  return (
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Sidebar */}
+      <aside className={cn(
+        "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r transition-transform lg:translate-x-0 lg:static",
+        mobileOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <div className="flex flex-col h-full">
+          <div className="p-6 flex items-center gap-2">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold">D</div>
+            <span className="text-xl font-bold font-headline text-primary">DevDash</span>
+          </div>
+
+          <nav className="flex-1 px-4 space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                    pathname === item.href 
+                      ? "bg-primary text-primary-foreground" 
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <Icon size={20} />
+                  <span className="text-sm font-medium">{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="p-4 border-t space-y-2">
+            <Button 
+              variant="outline" 
+              className={cn(
+                "w-full justify-start gap-3",
+                aiOpen && "bg-accent text-accent-foreground border-accent"
+              )}
+              onClick={() => {
+                setAiOpen(!aiOpen);
+                setMobileOpen(false);
+              }}
+            >
+              <Bot size={20} className={cn(aiOpen && "animate-pulse")} />
+              <span>AI Assistant</span>
+            </Button>
+            
+            <div className="pt-4 space-y-1">
+              <button 
+                onClick={exportData}
+                className="w-full flex items-center gap-3 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Download size={14} />
+                <span>Export Data</span>
+              </button>
+              <button 
+                onClick={resetData}
+                className="w-full flex items-center gap-3 px-3 py-2 text-xs text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+              >
+                <RotateCcw size={14} />
+                <span>Reset Demo</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header className="h-16 border-b bg-card flex items-center justify-between px-6 lg:justify-end">
+          <button className="lg:hidden p-2 text-muted-foreground" onClick={() => setMobileOpen(true)}>
+            <Menu size={24} />
+          </button>
+          
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:flex flex-col items-end">
+              <span className="text-sm font-medium">Dev Admin</span>
+              <span className="text-xs text-muted-foreground">Pro Account</span>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white">
+              <Users size={20} />
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+          {children}
+        </main>
+      </div>
+
+      {/* Overlay for mobile sidebar */}
+      {mobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* AI Assistant Drawer */}
+      <AIChat open={aiOpen} onClose={() => setAiOpen(false)} />
+    </div>
+  );
+}
