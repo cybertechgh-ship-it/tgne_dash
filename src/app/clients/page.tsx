@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
@@ -12,14 +12,16 @@ import {
   MapPin, 
   Mail, 
   Phone, 
-  ExternalLink,
   Trash2,
   Calendar,
   Globe,
   FileText,
   User,
   ArrowRight,
-  CalendarDays
+  CalendarDays,
+  Edit2,
+  Check,
+  X as CloseIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +32,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
@@ -44,10 +47,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Client } from '@/lib/types';
 
 export default function ClientsPage() {
-  const { data, addClient, deleteClient } = useApp();
+  const { data, addClient, updateClient, deleteClient } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<Partial<Client>>({});
   
   const [newClient, setNewClient] = useState({
     name: '',
@@ -72,6 +77,22 @@ export default function ClientsPage() {
     });
     setIsAddOpen(false);
     setNewClient({ name: '', businessName: '', email: '', phone: '', location: '', notes: '' });
+  };
+
+  const startEditing = () => {
+    if (selectedClient) {
+      setEditData(selectedClient);
+      setIsEditing(true);
+    }
+  };
+
+  const handleUpdateClient = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedClient && editData) {
+      updateClient(selectedClient.id, editData);
+      setSelectedClient({ ...selectedClient, ...editData } as Client);
+      setIsEditing(false);
+    }
   };
 
   const getClientStats = (clientId: string) => {
@@ -100,6 +121,7 @@ export default function ClientsPage() {
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Onboard New Partner</DialogTitle>
+                <DialogDescription>Add a new client to your management system.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddClient} className="space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -210,10 +232,22 @@ export default function ClientsPage() {
           })}
         </div>
 
-        <Sheet open={!!selectedClient} onOpenChange={(open) => !open && setSelectedClient(null)}>
+        <Sheet open={!!selectedClient} onOpenChange={(open) => {
+          if (!open) {
+            setSelectedClient(null);
+            setIsEditing(false);
+          }
+        }}>
           <SheetContent className="sm:max-w-[600px] overflow-y-auto">
             {selectedClient && (
               <div className="space-y-8 pb-10">
+                <SheetHeader>
+                  <SheetTitle>{isEditing ? 'Edit Partner Details' : selectedClient.businessName}</SheetTitle>
+                  <SheetDescription>
+                    {isEditing ? 'Modify the details for this client partnership.' : 'Comprehensive view of client status and history.'}
+                  </SheetDescription>
+                </SheetHeader>
+
                 <div className="relative h-64 -mx-6 -mt-6">
                   <Image 
                     src={selectedClient.avatarUrl || `https://picsum.photos/seed/${selectedClient.id}/600/400`} 
@@ -223,112 +257,171 @@ export default function ClientsPage() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
                   <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between">
-                    <div>
-                      <Badge className="mb-2 bg-primary/20 text-primary border-primary/30 hover:bg-primary/30 backdrop-blur-sm">VIP Partner</Badge>
-                      <h2 className="text-3xl font-bold">{selectedClient.businessName}</h2>
-                    </div>
+                    {!isEditing && (
+                      <div>
+                        <Badge className="mb-2 bg-primary/20 text-primary border-primary/30 hover:bg-primary/30 backdrop-blur-sm">VIP Partner</Badge>
+                        <h2 className="text-3xl font-bold">{selectedClient.businessName}</h2>
+                      </div>
+                    )}
                     <div className="flex gap-2">
-                      <Button variant="secondary" size="icon" asChild title="Schedule Call">
-                        <Link href="/schedule">
-                          <CalendarDays size={18} />
-                        </Link>
-                      </Button>
-                      <Button variant="destructive" size="icon" onClick={() => { deleteClient(selectedClient.id); setSelectedClient(null); }}>
-                        <Trash2 size={18} />
-                      </Button>
+                      {isEditing ? (
+                        <>
+                          <Button variant="outline" size="icon" onClick={() => setIsEditing(false)} title="Cancel">
+                            <CloseIcon size={18} />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button variant="secondary" size="icon" onClick={startEditing} title="Edit Client">
+                            <Edit2 size={18} />
+                          </Button>
+                          <Button variant="secondary" size="icon" asChild title="Schedule Call">
+                            <Link href="/schedule">
+                              <CalendarDays size={18} />
+                            </Link>
+                          </Button>
+                          <Button variant="destructive" size="icon" onClick={() => { deleteClient(selectedClient.id); setSelectedClient(null); }}>
+                            <Trash2 size={18} />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Lead Contact</p>
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                        <User size={20} />
+                {isEditing ? (
+                  <form onSubmit={handleUpdateClient} className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Business Name</Label>
+                        <Input value={editData.businessName} onChange={e => setEditData({...editData, businessName: e.target.value})} required />
                       </div>
-                      <div>
-                        <p className="font-bold">{selectedClient.name}</p>
-                        <p className="text-xs text-muted-foreground">Main Decision Maker</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Location</p>
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                        <MapPin size={20} />
-                      </div>
-                      <div>
-                        <p className="font-bold">{selectedClient.location}</p>
-                        <p className="text-xs text-muted-foreground">Office Address</p>
+                      <div className="space-y-2">
+                        <Label>Location</Label>
+                        <Input value={editData.location} onChange={e => setEditData({...editData, location: e.target.value})} />
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                   <h4 className="text-sm font-bold flex items-center gap-2">
-                    <Phone size={16} className="text-primary" />
-                    Communication Channels
-                   </h4>
-                   <div className="grid grid-cols-1 gap-3">
-                    <div className="flex items-center justify-between p-4 rounded-xl border group hover:border-primary transition-all">
-                      <div className="flex items-center gap-3">
-                        <Mail size={18} className="text-muted-foreground" />
-                        <span className="text-sm font-medium">{selectedClient.email}</span>
+                    <div className="space-y-2">
+                      <Label>Lead Contact</Label>
+                      <Input value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} required />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Email</Label>
+                        <Input type="email" value={editData.email} onChange={e => setEditData({...editData, email: e.target.value})} required />
                       </div>
-                      <Button variant="ghost" size="icon" className="group-hover:text-primary" asChild>
-                        <a href={`mailto:${selectedClient.email}`}><ArrowRight size={16} /></a>
+                      <div className="space-y-2">
+                        <Label>Phone</Label>
+                        <Input value={editData.phone} onChange={e => setEditData({...editData, phone: e.target.value})} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Notes</Label>
+                      <Textarea value={editData.notes} onChange={e => setEditData({...editData, notes: e.target.value})} />
+                    </div>
+                    <div className="flex gap-3">
+                      <Button type="submit" className="flex-1 gap-2">
+                        <Check size={18} />
+                        Save Changes
+                      </Button>
+                      <Button type="button" variant="outline" className="flex-1" onClick={() => setIsEditing(false)}>
+                        Cancel
                       </Button>
                     </div>
-                    <div className="flex items-center justify-between p-4 rounded-xl border group hover:border-primary transition-all">
-                      <div className="flex items-center gap-3">
-                        <Phone size={18} className="text-muted-foreground" />
-                        <span className="text-sm font-medium">{selectedClient.phone}</span>
-                      </div>
-                      <Button variant="ghost" size="icon" className="group-hover:text-primary" asChild>
-                        <a href={`tel:${selectedClient.phone}`}><ArrowRight size={16} /></a>
-                      </Button>
-                    </div>
-                   </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold flex items-center gap-2">
-                    <Globe size={16} className="text-primary" />
-                    Digital Properties
-                  </h4>
-                  <div className="space-y-3">
-                    {data.websites.filter(w => w.clientId === selectedClient.id).map(site => (
-                      <div key={site.id} className="p-4 rounded-xl border bg-card flex items-center justify-between">
-                        <div>
-                          <p className="font-bold text-sm">{site.domainName}</p>
-                          <div className="flex items-center gap-3 mt-1">
-                            <Badge variant="outline" className="text-[10px]">{site.platform}</Badge>
-                            <span className="text-[10px] text-muted-foreground">Expires: {site.expiryDate}</span>
+                  </form>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Lead Contact</p>
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                            <User size={20} />
+                          </div>
+                          <div>
+                            <p className="font-bold">{selectedClient.name}</p>
+                            <p className="text-xs text-muted-foreground">Main Decision Maker</p>
                           </div>
                         </div>
-                        <Badge className={site.paymentStatus === 'Paid' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}>
-                          {site.paymentStatus}
-                        </Badge>
                       </div>
-                    ))}
-                    {data.websites.filter(w => w.clientId === selectedClient.id).length === 0 && (
-                      <p className="text-sm text-muted-foreground italic">No websites linked yet.</p>
-                    )}
-                  </div>
-                </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Location</p>
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                            <MapPin size={20} />
+                          </div>
+                          <div>
+                            <p className="font-bold">{selectedClient.location}</p>
+                            <p className="text-xs text-muted-foreground">Office Address</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold flex items-center gap-2">
-                    <FileText size={16} className="text-primary" />
-                    Internal Strategy Notes
-                  </h4>
-                  <div className="p-4 rounded-xl bg-accent/30 border border-primary/20 italic text-sm leading-relaxed">
-                    "{selectedClient.notes}"
-                  </div>
-                </div>
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold flex items-center gap-2">
+                        <Phone size={16} className="text-primary" />
+                        Communication Channels
+                      </h4>
+                      <div className="grid grid-cols-1 gap-3">
+                        <div className="flex items-center justify-between p-4 rounded-xl border group hover:border-primary transition-all">
+                          <div className="flex items-center gap-3">
+                            <Mail size={18} className="text-muted-foreground" />
+                            <span className="text-sm font-medium">{selectedClient.email}</span>
+                          </div>
+                          <Button variant="ghost" size="icon" className="group-hover:text-primary" asChild>
+                            <a href={`mailto:${selectedClient.email}`}><ArrowRight size={16} /></a>
+                          </Button>
+                        </div>
+                        <div className="flex items-center justify-between p-4 rounded-xl border group hover:border-primary transition-all">
+                          <div className="flex items-center gap-3">
+                            <Phone size={18} className="text-muted-foreground" />
+                            <span className="text-sm font-medium">{selectedClient.phone}</span>
+                          </div>
+                          <Button variant="ghost" size="icon" className="group-hover:text-primary" asChild>
+                            <a href={`tel:${selectedClient.phone}`}><ArrowRight size={16} /></a>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold flex items-center gap-2">
+                        <Globe size={16} className="text-primary" />
+                        Digital Properties
+                      </h4>
+                      <div className="space-y-3">
+                        {data.websites.filter(w => w.clientId === selectedClient.id).map(site => (
+                          <div key={site.id} className="p-4 rounded-xl border bg-card flex items-center justify-between">
+                            <div>
+                              <p className="font-bold text-sm">{site.domainName}</p>
+                              <div className="flex items-center gap-3 mt-1">
+                                <Badge variant="outline" className="text-[10px]">{site.platform}</Badge>
+                                <span className="text-[10px] text-muted-foreground">Expires: {site.expiryDate}</span>
+                              </div>
+                            </div>
+                            <Badge className={site.paymentStatus === 'Paid' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}>
+                              {site.paymentStatus}
+                            </Badge>
+                          </div>
+                        ))}
+                        {data.websites.filter(w => w.clientId === selectedClient.id).length === 0 && (
+                          <p className="text-sm text-muted-foreground italic">No websites linked yet.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold flex items-center gap-2">
+                        <FileText size={16} className="text-primary" />
+                        Internal Strategy Notes
+                      </h4>
+                      <div className="p-4 rounded-xl bg-accent/30 border border-primary/20 italic text-sm leading-relaxed">
+                        "{selectedClient.notes}"
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <div className="pt-4 border-t flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                   <span>Client Since {selectedClient.createdAt}</span>
