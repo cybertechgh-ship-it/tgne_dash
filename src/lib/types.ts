@@ -1,52 +1,74 @@
+
 export interface Client {
   id: string;
   name: string;
-  businessName: string;
-  phone: string;
-  email: string;
-  location: string;
+  email?: string;
+  phone?: string;
+  companyName: string;
+  notes?: string;
   avatarUrl?: string;
-  notes: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Website {
   id: string;
   clientId: string;
-  domainName: string;
+  domain: string;
   url: string;
+  platform: 'WordPress' | 'Shopify' | 'Custom' | 'Other';
   hostingProvider: string;
-  platform: 'WordPress' | 'Custom' | 'Shopify' | 'Other';
   dateCreated: string;
   projectPrice: number;
-  paymentStatus: 'Paid' | 'Unpaid' | 'Partial';
+  paymentStatus: 'PAID' | 'PENDING';
   expiryDate?: string;
 }
 
 export interface Credential {
   id: string;
+  websiteId: string;
   clientId: string;
-  type: 'cPanel' | 'Hosting' | 'Domain Registrar' | 'WordPress Admin' | 'Other';
+  type: 'CPANEL' | 'HOSTING' | 'DOMAIN' | 'WORDPRESS' | 'FTP' | 'Other';
   username: string;
-  password: string; // Stored as simulated encrypted (base64)
-  url?: string;
+  password: string;
+  notes?: string;
+}
+
+export interface Payment {
+  id: string;
+  clientId: string;
+  websiteId?: string;
+  amount: number;
+  status: 'PAID' | 'PENDING';
+  paymentDate?: string;
+  receiptUrl?: string;
+}
+
+export interface Renewal {
+  id: string;
+  websiteId: string;
+  type: 'DOMAIN' | 'HOSTING' | 'SSL';
+  expiryDate: string;
+  reminderDays: number[];
+  lastNotifiedAt?: string;
 }
 
 export interface Task {
   id: string;
   clientId: string;
+  websiteId?: string;
+  title: string;
   description: string;
-  status: 'Pending' | 'In Progress' | 'Completed';
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   dueDate: string;
 }
 
-export interface Reminder {
+export interface AIInteraction {
   id: string;
-  type: 'Domain' | 'Hosting' | 'Payment' | 'Web Management';
-  title: string;
-  date: string;
-  isRead: boolean;
-  details?: string;
+  userQuery: string;
+  aiResponse: string;
+  actionType?: string;
+  createdAt: string;
 }
 
 export interface AppData {
@@ -54,5 +76,5 @@ export interface AppData {
   websites: Website[];
   credentials: Credential[];
   tasks: Task[];
-  reminders: Reminder[];
+  renewals: Renewal[];
 }
