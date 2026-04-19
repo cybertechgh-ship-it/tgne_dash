@@ -67,8 +67,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       )}>
         <div className="flex flex-col h-full">
           <div className="p-6 flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold">D</div>
-            <span className="text-xl font-bold font-headline text-primary">DevDash</span>
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold">T</div>
+            <span className="text-xl font-bold font-headline text-primary">TGNE</span>
           </div>
 
           <nav className="flex-1 px-4 space-y-1">
@@ -141,7 +141,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               {isDark ? <Sun size={20} /> : <Moon size={20} />}
             </Button>
             <div className="hidden sm:flex flex-col items-end">
-              <span className="text-sm font-medium">Dev Admin</span>
+              <span className="text-sm font-medium">TGNE Admin</span>
               <span className="text-xs text-muted-foreground">Pro Account</span>
             </div>
             <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white">

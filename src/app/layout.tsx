@@ -4,7 +4,7 @@ import { AppProvider } from '@/lib/store';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'DevDash Connect | Premium Web Dev Dashboard',
+  title: 'TGNE | Premium Web Dev Dashboard',
   description: 'Manage your web development clients, credentials, and projects with ease.',
 };
 

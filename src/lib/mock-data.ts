@@ -9,7 +9,7 @@ export const INITIAL_DATA: AppData = {
       phone: '+233 24 123 4567',
       email: 'kofi@crafts.com',
       location: 'Accra, Ghana',
-      avatarUrl: 'https://picsum.photos/seed/kofi/400/300',
+      avatarUrl: 'https://picsum.photos/seed/kofi/600/400',
       notes: 'Loves clean, modern designs and high-contrast visuals.',
       createdAt: '2023-10-01'
     },
@@ -20,7 +20,7 @@ export const INITIAL_DATA: AppData = {
       phone: '+1 555 123 4567',
       email: 'sarah@bakery.com',
       location: 'Portland, OR',
-      avatarUrl: 'https://picsum.photos/seed/sarah/400/300',
+      avatarUrl: 'https://picsum.photos/seed/sarah/600/400',
       notes: 'Needs regular blog updates and seasonal promotional banners.',
       createdAt: '2023-11-15'
     },
@@ -31,7 +31,7 @@ export const INITIAL_DATA: AppData = {
       phone: '+39 02 123 4567',
       email: 'marco@rossi.it',
       location: 'Milan, Italy',
-      avatarUrl: 'https://picsum.photos/seed/marco/400/300',
+      avatarUrl: 'https://picsum.photos/seed/marco/600/400',
       notes: 'High-end furniture showroom. Requires high-res image optimization.',
       createdAt: '2024-01-20'
     },
@@ -42,7 +42,7 @@ export const INITIAL_DATA: AppData = {
       phone: '+359 2 987 6543',
       email: 'elena@petrova-legal.bg',
       location: 'Sofia, Bulgaria',
-      avatarUrl: 'https://picsum.photos/seed/elena/400/300',
+      avatarUrl: 'https://picsum.photos/seed/elena/600/400',
       notes: 'Professional law firm. Prefers conservative, authoritative color palettes.',
       createdAt: '2024-02-05'
     },
@@ -53,7 +53,7 @@ export const INITIAL_DATA: AppData = {
       phone: '+1 604 555 0199',
       email: 'jack@thorneoutdoors.ca',
       location: 'Vancouver, Canada',
-      avatarUrl: 'https://picsum.photos/seed/jack/400/300',
+      avatarUrl: 'https://picsum.photos/seed/jack/600/400',
       notes: 'Adventure gear retailer. Needs a focus on mobile responsiveness for hikers.',
       createdAt: '2024-02-12'
     },
@@ -64,7 +64,7 @@ export const INITIAL_DATA: AppData = {
       phone: '+81 75 123 4567',
       email: 'mei@linstea.jp',
       location: 'Kyoto, Japan',
-      avatarUrl: 'https://picsum.photos/seed/mei/400/300',
+      avatarUrl: 'https://picsum.photos/seed/mei/600/400',
       notes: 'Traditional tea ceremonies. Aesthetic must be minimalist and serene.',
       createdAt: '2024-02-18'
     },
@@ -75,7 +75,7 @@ export const INITIAL_DATA: AppData = {
       phone: '+91 80 4567 8901',
       email: 'anita@desaitech.in',
       location: 'Bangalore, India',
-      avatarUrl: 'https://picsum.photos/seed/anita/400/300',
+      avatarUrl: 'https://picsum.photos/seed/anita/600/400',
       notes: 'SaaS startup. Fast-paced environment with frequent feature requests.',
       createdAt: '2024-03-01'
     },
@@ -86,7 +86,7 @@ export const INITIAL_DATA: AppData = {
       phone: '+34 93 123 4567',
       email: 'carlos@mendeztapas.es',
       location: 'Barcelona, Spain',
-      avatarUrl: 'https://picsum.photos/seed/carlos/400/300',
+      avatarUrl: 'https://picsum.photos/seed/carlos/600/400',
       notes: 'Vibrant restaurant. Needs integration with reservation platforms.',
       createdAt: '2024-03-05'
     },
@@ -97,7 +97,7 @@ export const INITIAL_DATA: AppData = {
       phone: '+33 1 45 67 89 00',
       email: 'sophie@laurentmode.fr',
       location: 'Paris, France',
-      avatarUrl: 'https://picsum.photos/seed/sophie/400/300',
+      avatarUrl: 'https://picsum.photos/seed/sophie/600/400',
       notes: 'Boutique fashion house. Strong focus on visual storytelling and high-res video.',
       createdAt: '2024-03-10'
     },
@@ -108,7 +108,7 @@ export const INITIAL_DATA: AppData = {
       phone: '+44 20 7946 0000',
       email: 'david@smithfinancial.co.uk',
       location: 'London, UK',
-      avatarUrl: 'https://picsum.photos/seed/david/400/300',
+      avatarUrl: 'https://picsum.photos/seed/david/600/400',
       notes: 'Wealth management. Security and data privacy are top priorities.',
       createdAt: '2024-03-12'
     }
@@ -124,7 +124,7 @@ export const INITIAL_DATA: AppData = {
       dateCreated: '2023-10-05',
       projectPrice: 1500,
       paymentStatus: 'Paid',
-      expiryDate: '2024-10-05'
+      expiryDate: '2024-12-05'
     },
     {
       id: 'w2',
@@ -179,21 +179,21 @@ export const INITIAL_DATA: AppData = {
       clientId: 'c1',
       description: 'Review homepage',
       status: 'Pending',
-      dueDate: '2024-03-01'
+      dueDate: '2024-05-01'
     },
     {
       id: 't2',
       clientId: 'c2',
       description: 'Set up Google Analytics',
       status: 'In Progress',
-      dueDate: '2024-02-28'
+      dueDate: '2024-04-28'
     },
     {
       id: 't3',
       clientId: 'c10',
       description: 'Review Q1 Financials UI',
       status: 'Pending',
-      dueDate: '2024-04-10'
+      dueDate: '2024-06-10'
     }
   ],
   reminders: [

@@ -58,7 +58,7 @@ export default function RemindersPage() {
   const generateGoogleCalendarUrl = (reminder: any) => {
     const title = encodeURIComponent(reminder.title);
     const date = reminder.date.replace(/-/g, '');
-    const details = encodeURIComponent(reminder.details || `DevDash automated reminder for ${reminder.title}`);
+    const details = encodeURIComponent(reminder.details || `TGNE automated reminder for ${reminder.title}`);
     // Create a 1-hour event
     return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${date}/${date}&details=${details}&sf=true&output=xml`;
   };
@@ -69,7 +69,7 @@ export default function RemindersPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold font-headline tracking-tight">System Reminders</h1>
-            <p className="text-muted-foreground mt-1">Automatic alerts for renewals, payments, and deadlines.</p>
+            <p className="text-muted-foreground mt-1">Automatic TGNE alerts for renewals, payments, and deadlines.</p>
           </div>
           <Badge variant="outline" className="gap-2 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
             <Check size={14} />

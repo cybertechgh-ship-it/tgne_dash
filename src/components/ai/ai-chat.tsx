@@ -18,7 +18,7 @@ interface Message {
 
 export function AIChat({ open, onClose }: { open: boolean, onClose: () => void }) {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: "Hello! I'm your DevDash assistant. How can I help you manage your clients and tasks today?" }
+    { role: 'assistant', content: "Hello! I'm your TGNE assistant. How can I help you manage your clients and tasks today?" }
   ]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -43,17 +43,12 @@ export function AIChat({ open, onClose }: { open: boolean, onClose: () => void }
     setMessages(prev => [...prev, { role: 'assistant', content: '', isTyping: true }]);
 
     try {
-      // Use the logic flow from ai-data-query.ts
       const response = await aiDataQuery(userQuery);
-      
-      // Also try to parse actual actions using ai-action-execution.ts
       const actionResult = await aiActionExecution({ query: userQuery });
       
-      // Handle the parsed action if applicable
       if (actionResult.actionType === 'addTask' && actionResult.taskDescription) {
-        // Here we could find the client by name or just use a default/placeholder if name unknown
         addTask({
-          clientId: 'c1', // Placeholder or matching logic
+          clientId: 'c1',
           description: actionResult.taskDescription,
           status: 'Pending',
           dueDate: actionResult.dueDate || new Date().toISOString().split('T')[0]
@@ -75,7 +70,7 @@ export function AIChat({ open, onClose }: { open: boolean, onClose: () => void }
       <div className="p-4 border-b flex items-center justify-between bg-primary rounded-t-2xl text-primary-foreground">
         <div className="flex items-center gap-2">
           <Bot size={20} />
-          <span className="font-bold">AI Assistant</span>
+          <span className="font-bold">TGNE AI Assistant</span>
         </div>
         <button onClick={onClose} className="hover:bg-white/20 p-1 rounded-md transition-colors">
           <X size={18} />
@@ -135,7 +130,7 @@ export function AIChat({ open, onClose }: { open: boolean, onClose: () => void }
           <Input 
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask anything..."
+            placeholder="Ask TGNE anything..."
             className="pr-10 bg-white"
           />
           <button 
