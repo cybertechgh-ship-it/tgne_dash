@@ -4,14 +4,13 @@ import prisma from '@/lib/prisma';
 import { AppData, Client, Website, Credential, Task, Reminder, Payment } from './types';
 
 export async function fetchAllData(): Promise<AppData> {
-  const [clients, websites, credentials, tasks, reminders, payments] = await Promise.all([
-    prisma.client.findMany({ orderBy: { createdAt: 'desc' } }),
-    prisma.website.findMany(),
-    prisma.credential.findMany(),
-    prisma.task.findMany(),
-    prisma.reminder.findMany({ orderBy: { date: 'asc' } }),
-    prisma.payment.findMany({ orderBy: { createdAt: 'desc' } }),
-  ]);
+  // Run sequentially to avoid exhausting Neon's connection pool (P2024)
+  const clients = await prisma.client.findMany({ orderBy: { createdAt: 'desc' } });
+  const websites = await prisma.website.findMany();
+  const credentials = await prisma.credential.findMany();
+  const tasks = await prisma.task.findMany();
+  const reminders = await prisma.reminder.findMany({ orderBy: { date: 'asc' } });
+  const payments = await prisma.payment.findMany({ orderBy: { createdAt: 'desc' } });
 
   return {
     clients: clients.map(c => ({
