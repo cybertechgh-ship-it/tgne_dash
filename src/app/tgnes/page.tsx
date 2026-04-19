@@ -153,7 +153,7 @@ export default function AdminPinPage() {
                 "w-full h-14 text-base font-bold transition-all duration-300 rounded-xl shadow-lg",
                 isSuccess ? "bg-green-500 hover:bg-green-600 text-white" : 
                 error ? "bg-red-500 hover:bg-red-600 text-white" :
-                "bg-gradient-to-r from-blue-500 to-orange-500 hover:from-blue-600 hover:to-orange-600 text-white",
+                "bg-blue-400 hover:bg-blue-500 text-white",
                 isVerifying && "opacity-70"
               )}
             >
