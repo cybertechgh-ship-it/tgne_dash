@@ -4,7 +4,8 @@ export interface Client {
   name: string;
   email?: string;
   phone?: string;
-  companyName: string;
+  businessName: string;
+  location: string;
   notes?: string;
   avatarUrl?: string;
   createdAt: string;
@@ -14,56 +15,50 @@ export interface Client {
 export interface Website {
   id: string;
   clientId: string;
-  domain: string;
+  domainName: string;
   url: string;
   platform: 'WordPress' | 'Shopify' | 'Custom' | 'Other';
   hostingProvider: string;
   dateCreated: string;
   projectPrice: number;
-  paymentStatus: 'PAID' | 'PENDING';
+  paymentStatus: 'Paid' | 'Unpaid';
   expiryDate?: string;
 }
 
 export interface Credential {
   id: string;
-  websiteId: string;
   clientId: string;
-  type: 'CPANEL' | 'HOSTING' | 'DOMAIN' | 'WORDPRESS' | 'FTP' | 'Other';
+  type: 'cPanel' | 'Hosting' | 'Domain Registrar' | 'WordPress Admin' | 'Other';
   username: string;
   password: string;
-  notes?: string;
+  url?: string;
 }
 
 export interface Payment {
   id: string;
   clientId: string;
-  websiteId?: string;
   amount: number;
   status: 'PAID' | 'PENDING';
-  paymentDate?: string;
-  receiptUrl?: string;
-  invoiceNumber: string;
+  paymentDate: string;
   description: string;
+  invoiceNumber: string;
   createdAt: string;
-}
-
-export interface Renewal {
-  id: string;
-  websiteId: string;
-  type: 'DOMAIN' | 'HOSTING' | 'SSL';
-  expiryDate: string;
-  reminderDays: number[];
-  lastNotifiedAt?: string;
 }
 
 export interface Task {
   id: string;
   clientId: string;
-  websiteId?: string;
-  title: string;
   description: string;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  status: 'Pending' | 'In Progress' | 'Completed';
   dueDate: string;
+}
+
+export interface Reminder {
+  id: string;
+  type: 'Web Management' | 'Domain' | 'Hosting' | 'Payment';
+  title: string;
+  date: string;
+  details: string;
 }
 
 export interface AppData {
@@ -71,6 +66,6 @@ export interface AppData {
   websites: Website[];
   credentials: Credential[];
   tasks: Task[];
-  renewals: Renewal[];
+  reminders: Reminder[];
   payments: Payment[];
 }

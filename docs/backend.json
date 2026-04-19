@@ -7,15 +7,16 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
+        "businessName": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "phone": { "type": "string" },
-        "companyName": { "type": "string" },
+        "location": { "type": "string" },
         "notes": { "type": "string" },
         "avatarUrl": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["name", "companyName"]
+      "required": ["name", "businessName"]
     },
     "Website": {
       "title": "Website",
@@ -23,30 +24,29 @@
       "type": "object",
       "properties": {
         "clientId": { "type": "string" },
-        "domain": { "type": "string" },
+        "domainName": { "type": "string" },
         "url": { "type": "string" },
         "platform": { "type": "string", "enum": ["WordPress", "Shopify", "Custom", "Other"] },
         "hostingProvider": { "type": "string" },
         "dateCreated": { "type": "string", "format": "date-time" },
         "projectPrice": { "type": "number" },
-        "paymentStatus": { "type": "string", "enum": ["PAID", "PENDING"] },
+        "paymentStatus": { "type": "string", "enum": ["Paid", "Unpaid"] },
         "expiryDate": { "type": "string", "format": "date-time" }
       },
-      "required": ["clientId", "domain"]
+      "required": ["clientId", "domainName"]
     },
     "Credential": {
       "title": "Credential",
       "description": "Securely store login credentials per website",
       "type": "object",
       "properties": {
-        "websiteId": { "type": "string" },
         "clientId": { "type": "string" },
-        "type": { "type": "string", "enum": ["CPANEL", "HOSTING", "DOMAIN", "WORDPRESS", "FTP", "Other"] },
+        "type": { "type": "string", "enum": ["cPanel", "Hosting", "Domain Registrar", "WordPress Admin", "Other"] },
         "username": { "type": "string" },
         "password": { "type": "string", "description": "Simulated encrypted password" },
-        "notes": { "type": "string" }
+        "url": { "type": "string" }
       },
-      "required": ["websiteId", "type", "username", "password"]
+      "required": ["clientId", "type", "username", "password"]
     },
     "Payment": {
       "title": "Payment",
@@ -54,26 +54,26 @@
       "type": "object",
       "properties": {
         "clientId": { "type": "string" },
-        "websiteId": { "type": "string" },
         "amount": { "type": "number" },
         "status": { "type": "string", "enum": ["PAID", "PENDING"] },
-        "paymentDate": { "type": "string", "format": "date-time" },
-        "receiptUrl": { "type": "string" }
+        "paymentDate": { "type": "string", "format": "date" },
+        "description": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["clientId", "amount", "status"]
+      "required": ["clientId", "amount", "status", "invoiceNumber"]
     },
-    "Renewal": {
-      "title": "Renewal",
-      "description": "Track domain/hosting/SSL expirations",
+    "Reminder": {
+      "title": "Reminder",
+      "description": "Track domain/hosting/management alerts",
       "type": "object",
       "properties": {
-        "websiteId": { "type": "string" },
-        "type": { "type": "string", "enum": ["DOMAIN", "HOSTING", "SSL"] },
-        "expiryDate": { "type": "string", "format": "date-time" },
-        "reminderDays": { "type": "array", "items": { "type": "integer" } },
-        "lastNotifiedAt": { "type": "string", "format": "date-time" }
+        "type": { "type": "string", "enum": ["Web Management", "Domain", "Hosting", "Payment"] },
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "details": { "type": "string" }
       },
-      "required": ["websiteId", "type", "expiryDate"]
+      "required": ["type", "title", "date"]
     },
     "Task": {
       "title": "Task",
@@ -81,37 +81,11 @@
       "type": "object",
       "properties": {
         "clientId": { "type": "string" },
-        "websiteId": { "type": "string" },
-        "title": { "type": "string" },
         "description": { "type": "string" },
-        "status": { "type": "string", "enum": ["PENDING", "IN_PROGRESS", "COMPLETED"] },
+        "status": { "type": "string", "enum": ["Pending", "In Progress", "Completed"] },
         "dueDate": { "type": "string", "format": "date-time" }
       },
-      "required": ["clientId", "title", "status"]
-    },
-    "AIInteraction": {
-      "title": "AIInteraction",
-      "description": "Store AI assistant interactions",
-      "type": "object",
-      "properties": {
-        "userQuery": { "type": "string" },
-        "aiResponse": { "type": "string" },
-        "actionType": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["userQuery", "aiResponse"]
-    },
-    "Notification": {
-      "title": "Notification",
-      "description": "Track reminders sent",
-      "type": "object",
-      "properties": {
-        "renewalId": { "type": "string" },
-        "type": { "type": "string", "enum": ["EMAIL", "SYSTEM"] },
-        "sentAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["SUCCESS", "FAILED"] }
-      },
-      "required": ["renewalId", "type", "status"]
+      "required": ["clientId", "description", "status"]
     }
   },
   "auth": {
@@ -122,9 +96,7 @@
     "websites": { "schema": "#/entities/Website", "description": "Digital properties" },
     "credentials": { "schema": "#/entities/Credential", "description": "Login details" },
     "payments": { "schema": "#/entities/Payment", "description": "Invoices and payments" },
-    "renewals": { "schema": "#/entities/Renewal", "description": "Expirations and alerts" },
-    "tasks": { "schema": "#/entities/Task", "description": "Management tasks" },
-    "ai_interactions": { "schema": "#/entities/AIInteraction", "description": "AI history" },
-    "notifications": { "schema": "#/entities/Notification", "description": "Delivery logs" }
+    "reminders": { "schema": "#/entities/Reminder", "description": "Expirations and alerts" },
+    "tasks": { "schema": "#/entities/Task", "description": "Management tasks" }
   }
 }

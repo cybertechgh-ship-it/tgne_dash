@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { AppData, Client, Website, Credential, Task, Renewal, Payment } from './types';
+import { AppData, Client, Website, Credential, Task, Reminder, Payment } from './types';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useCollection } from '@/firebase';
 import { 
@@ -11,9 +11,6 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
-  serverTimestamp,
-  query,
-  where
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -31,8 +28,8 @@ interface AppContextType {
   addCredential: (credential: Partial<Credential>) => void;
   addTask: (task: Partial<Task>) => void;
   updateTask: (id: string, status: Task['status']) => void;
-  addRenewal: (renewal: Partial<Renewal>) => void;
-  deleteRenewal: (id: string) => void;
+  addReminder: (reminder: Partial<Reminder>) => void;
+  deleteReminder: (id: string) => void;
   addPayment: (payment: Partial<Payment>) => void;
   updatePayment: (id: string, updates: Partial<Payment>) => void;
   deletePayment: (id: string) => void;
@@ -52,7 +49,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const websitesColl = useCollection<Website>(db ? collection(db, 'websites') : null);
   const credentialsColl = useCollection<Credential>(db ? collection(db, 'credentials') : null);
   const tasksColl = useCollection<Task>(db ? collection(db, 'tasks') : null);
-  const renewalsColl = useCollection<Renewal>(db ? collection(db, 'renewals') : null);
+  const remindersColl = useCollection<Reminder>(db ? collection(db, 'reminders') : null);
   const paymentsColl = useCollection<Payment>(db ? collection(db, 'payments') : null);
 
   useEffect(() => {
@@ -67,9 +64,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     websites: websitesColl.data || [],
     credentials: credentialsColl.data || [],
     tasks: tasksColl.data || [],
-    renewals: renewalsColl.data || [],
+    reminders: remindersColl.data || [],
     payments: paymentsColl.data || [],
-  }), [clientsColl.data, websitesColl.data, credentialsColl.data, tasksColl.data, renewalsColl.data, paymentsColl.data]);
+  }), [clientsColl.data, websitesColl.data, credentialsColl.data, tasksColl.data, remindersColl.data, paymentsColl.data]);
 
   const isLoading = clientsColl.loading || websitesColl.loading;
 
@@ -138,14 +135,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateDoc(doc(db, 'tasks', id), { status });
   };
 
-  const addRenewal = (renewal: Partial<Renewal>) => {
+  const addReminder = (reminder: Partial<Reminder>) => {
     if (!db) return;
-    addDoc(collection(db, 'renewals'), renewal);
+    addDoc(collection(db, 'reminders'), reminder);
   };
 
-  const deleteRenewal = (id: string) => {
+  const deleteReminder = (id: string) => {
     if (!db) return;
-    deleteDoc(doc(db, 'renewals', id));
+    deleteDoc(doc(db, 'reminders', id));
   };
 
   const addPayment = (payment: Partial<Payment>) => {
@@ -180,8 +177,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addCredential, 
       addTask, 
       updateTask,
-      addRenewal,
-      deleteRenewal,
+      addReminder,
+      deleteReminder,
       addPayment,
       updatePayment,
       deletePayment
