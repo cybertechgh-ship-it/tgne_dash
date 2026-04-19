@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
@@ -19,6 +18,8 @@ interface AppContextType {
   addCredential: (credential: Omit<Credential, 'id'>) => void;
   addTask: (task: Omit<Task, 'id'>) => void;
   updateTask: (id: string, status: Task['status']) => void;
+  addReminder: (reminder: Omit<Reminder, 'id' | 'isRead'>) => void;
+  deleteReminder: (id: string) => void;
   exportData: () => void;
   importData: (jsonData: string) => void;
   resetData: (silent?: boolean) => void;
@@ -158,6 +159,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  const addReminder = (reminder: Omit<Reminder, 'id' | 'isRead'>) => {
+    const newReminder: Reminder = {
+      ...reminder,
+      id: Math.random().toString(36).substr(2, 9),
+      isRead: false
+    };
+    setData(prev => ({ ...prev, reminders: [...prev.reminders, newReminder] }));
+    toast({ title: "Reminder Created", description: "Alert has been successfully scheduled." });
+  };
+
+  const deleteReminder = (id: string) => {
+    setData(prev => ({
+      ...prev,
+      reminders: prev.reminders.filter(r => r.id !== id)
+    }));
+    toast({ title: "Reminder Dismissed", description: "The alert has been removed." });
+  };
+
   const exportData = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -198,6 +217,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addCredential, 
       addTask, 
       updateTask,
+      addReminder,
+      deleteReminder,
       exportData,
       importData,
       resetData

@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { useApp } from '@/lib/store';
 import { 
@@ -13,16 +13,36 @@ import {
   Calendar as GoogleCalendarIcon,
   ChevronRight,
   ShieldCheck,
-  Server
+  Server,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 export default function RemindersPage() {
-  const { data } = useApp();
+  const { data, addReminder, deleteReminder } = useApp();
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [newReminder, setNewReminder] = useState({
+    type: 'Web Management' as any,
+    title: '',
+    date: new Date().toISOString().split('T')[0],
+    details: ''
+  });
 
   const allReminders = [...data.reminders].sort((a, b) => 
     new Date(a.date).getTime() - new Date(b.date).getTime()
@@ -53,6 +73,18 @@ export default function RemindersPage() {
     const dateStr = reminder.date.replace(/-/g, '');
     const details = encodeURIComponent(reminder.details || `Automated management reminder via TGNE dashboard.`);
     return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dateStr}/${dateStr}&details=${details}&sf=true&output=xml`;
+  };
+
+  const handleAddReminder = (e: React.FormEvent) => {
+    e.preventDefault();
+    addReminder(newReminder);
+    setIsAddOpen(false);
+    setNewReminder({
+      type: 'Web Management',
+      title: '',
+      date: new Date().toISOString().split('T')[0],
+      details: ''
+    });
   };
 
   const groups = {
@@ -103,8 +135,13 @@ export default function RemindersPage() {
                     Sync GCal
                   </a>
                 </Button>
-                <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                  Dismiss
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10"
+                  onClick={() => deleteReminder(reminder.id)}
+                >
+                  <Trash2 size={16} />
                 </Button>
               </div>
             </CardContent>
@@ -128,8 +165,52 @@ export default function RemindersPage() {
             <h1 className="text-4xl font-extrabold tracking-tight">TGNE Alert Center</h1>
             <p className="text-muted-foreground mt-2 text-lg">Centralized tracking for renewals and digital management.</p>
           </div>
+          
           <div className="flex items-center gap-3">
-            <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 py-1.5 px-4 font-bold flex gap-2">
+            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2 shadow-lg premium-button">
+                  <Plus size={18} />
+                  New Reminder
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Schedule Alert</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleAddReminder} className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Category</Label>
+                    <Select onValueChange={v => setNewReminder({...newReminder, type: v as any})} defaultValue="Web Management">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Web Management">Web Management</SelectItem>
+                        <SelectItem value="Domain">Domain Renewal</SelectItem>
+                        <SelectItem value="Hosting">Hosting Renewal</SelectItem>
+                        <SelectItem value="Payment">Payment Follow-up</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Alert Title</Label>
+                    <Input id="title" required placeholder="e.g. Domain Renewal: client.com" value={newReminder.title} onChange={e => setNewReminder({...newReminder, title: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="date">Scheduled Date</Label>
+                    <Input id="date" type="date" required value={newReminder.date} onChange={e => setNewReminder({...newReminder, date: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="details">Description / Notes</Label>
+                    <Textarea id="details" placeholder="Additional context for the reminder..." value={newReminder.details} onChange={e => setNewReminder({...newReminder, details: e.target.value})} />
+                  </div>
+                  <Button type="submit" className="w-full">Schedule Alert</Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 py-1.5 px-4 font-bold hidden sm:flex gap-2">
               <Check size={14} />
               Calendar Sync Active
             </Badge>
