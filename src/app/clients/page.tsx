@@ -9,8 +9,8 @@ import {
   Plus, Search, MapPin, Mail, Phone, Trash2, Globe, User,
   ArrowRight, Edit2, Check, X as XIcon, Upload, Building2,
   Tag, DollarSign, CreditCard, ChevronRight, ChevronLeft,
-  Briefcase, Star, AlertTriangle, Clock, Banknote, Smartphone,
-  Receipt, ToggleLeft, Users, Filter, BadgeCheck
+  Star, AlertTriangle, Clock, Banknote, Smartphone,
+  Receipt, Users, Filter, BadgeCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

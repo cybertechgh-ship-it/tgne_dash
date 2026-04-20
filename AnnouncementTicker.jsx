@@ -34,7 +34,7 @@ const AnnouncementTicker = ({ reminders = [] }) => {
         <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#4A7289] to-transparent z-10" />
 
         {/* Ticker Animation */}
-        <div className="flex animate-ticker hover:pause-ticker whitespace-nowrap items-center">
+        <div className="flex animate-ticker pause-ticker whitespace-nowrap items-center">
           {scrollItems.map((item, idx) => (
             <div key={`${item.id}-${idx}`} className="flex items-center mx-10 group cursor-default">
               <span className={`text-[10px] font-black px-2 py-0.5 rounded mr-3 ${item.daysLeft <= 7 ? 'bg-red-500 text-white' : 'bg-[#ECF1F3]/20 text-white/80'}`}>

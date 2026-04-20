@@ -4,7 +4,7 @@
 import React, { useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { getCalApi } from "@calcom/embed-react";
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { CalendarDays, Sparkles } from 'lucide-react';
 
 export default function SchedulePage() {

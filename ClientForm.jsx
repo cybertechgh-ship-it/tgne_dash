@@ -72,7 +72,7 @@ const ClientForm = ({ client, onSave, onCancel }) => {
     if (file && file.size <= 1024 * 1024) setFormData({...formData, logo: URL.createObjectURL(file)});
   };
 
-movin  const removeSiteField = (index) => {
+  const removeSiteField = (index) => {
     const newSites = formData.sites.filter((_, i) => i !== index);
     const newErrors = siteErrors.filter((_, i) => i !== index);
     setFormData({ ...formData, sites: newSites });
@@ -204,17 +204,54 @@ movin  const removeSiteField = (index) => {
             + Add Site
           </button>
         </div>
-      )}
+      ) : step === 4 ? (
+        <div className="space-y-6">
+          <p className="text-xs font-bold text-[#4A7289]/60 mb-4 italic">
+            Add internal notes and labels to categorize this client.
+          </p>
+          <div>
+            <label className="text-[10px] uppercase font-bold text-slate-400 mb-2 block">Notes</label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData({...formData, notes: e.target.value})}
+              rows={5}
+              className="w-full p-3 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-[#8585E3] resize-none"
+              placeholder="Internal notes about this client..."
+            />
+          </div>
+          <div>
+            <p className="text-[10px] uppercase font-bold text-slate-400 mb-2">Tags</p>
+            <div className="flex flex-wrap gap-2">
+              {['VIP', 'High Value', 'Risky', 'New', 'Recurring', 'Priority'].map(tag => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleTag(tag)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                    formData.tags.includes(tag)
+                      ? 'bg-[#8585E3] text-white border-[#8585E3]'
+                      : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-[#8585E3]/50'
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-10 flex gap-4">
-        {step === 2 && (
-          <button onClick={() => setStep(1)} className="px-6 py-4 text-slate-400 font-bold text-sm hover:text-slate-600 transition-colors">Back</button>
-        )}
+        {step > 1 ? (
+          <button onClick={() => setStep(step - 1)} className="px-6 py-4 text-slate-400 font-bold text-sm hover:text-slate-600 transition-colors">Back</button>
+        ) : onCancel ? (
+          <button type="button" onClick={onCancel} className="px-6 py-4 text-slate-400 font-bold text-sm hover:text-slate-600 transition-colors">Cancel</button>
+        ) : null}
         <button
           onClick={handleNextStep}
           className="flex-1 py-4 bg-[#8585E3] text-white rounded-2xl font-black text-sm shadow-xl shadow-[#8585E3]/20 hover:scale-[1.02] active:scale-95 transition-all"
         >
-          {step === 1 ? 'Continue' : 'Finish & Save'}
+          {step < 4 ? 'Continue' : 'Finish & Save'}
         </button>
       </div>
     </div>
