@@ -248,7 +248,8 @@ const ClientForm = ({ client, onSave, onCancel }) => {
           <button type="button" onClick={onCancel} className="px-6 py-4 text-slate-400 font-bold text-sm hover:text-slate-600 transition-colors">Cancel</button>
         ) : null}
         <button
-          onClick={handleNextStep}
+          type={step < 4 ? "button" : "submit"}
+          onClick={(e) => { e.preventDefault(); handleNextStep(); }}
           className="flex-1 py-4 bg-[#8585E3] text-white rounded-2xl font-black text-sm shadow-xl shadow-[#8585E3]/20 hover:scale-[1.02] active:scale-95 transition-all"
         >
           {step < 4 ? 'Continue' : 'Finish & Save'}

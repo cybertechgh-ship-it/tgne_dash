@@ -142,7 +142,7 @@ export default function ClientsPage() {
   const [isEditing, setIsEditing]         = useState(false);
 
   // Form state
-  const [step, setStep]       = useState<1 | 2>(1);
+  const [step, setStep]       = useState<number>(1); // Expanded to 4 steps
   const [form, setForm]       = useState<Partial<Client>>(blank());
   const [editData, setEditData] = useState<Partial<Client>>({});
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -307,20 +307,17 @@ export default function ClientsPage() {
                   <div>
                     <DialogTitle className="text-xl font-bold">Initialize Partnership</DialogTitle>
                     <DialogDescription className="mt-1">
-                      {step === 1 ? 'Step 1 of 2 — Client Identity' : 'Step 2 of 2 — Business Setup'}
+                      Step {step} of 4 — {step === 1 ? 'Identity' : step === 2 ? 'Business' : step === 3 ? 'Sites' : 'Notes'}
                     </DialogDescription>
                   </div>
                   {/* Step indicator */}
                   <div className="flex items-center gap-2">
-                    <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all',
-                      step === 1 ? 'bg-primary text-primary-foreground border-primary' : 'bg-emerald-500 text-white border-emerald-500')}>
-                      {step === 1 ? '1' : <Check size={14} />}
-                    </div>
-                    <div className="w-8 h-0.5 bg-border" />
-                    <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all',
-                      step === 2 ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border')}>
-                      2
-                    </div>
+                    {[1, 2, 3, 4].map((s) => (
+                      <div key={s} className={cn('w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-all',
+                        step === s ? 'bg-primary text-primary-foreground border-primary' : step > s ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-muted text-muted-foreground border-border')}>
+                        {step > s ? <Check size={10} /> : s}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </DialogHeader>
