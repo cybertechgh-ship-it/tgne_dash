@@ -12,6 +12,8 @@ import { defineConfig } from 'drizzle-kit';
 import * as dotenv from 'dotenv';
 
 // Load .env so drizzle-kit CLI can read DATABASE_URL
+// Load .env.local first (Next.js convention), fall back to .env
+dotenv.config({ path: '.env.local' });
 dotenv.config({ path: '.env' });
 
 export default defineConfig({
