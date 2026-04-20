@@ -24,21 +24,25 @@ interface AppContextType {
   isLoading: boolean;
   isSaving: boolean;
   isAuthorized: boolean;
-  verifyPin:     (pin: string) => boolean;
-  logout:        () => void;
-  addClient:     (client: Partial<Client>) => Promise<void>;
-  updateClient:  (id: string, client: Partial<Client>) => Promise<void>;
-  deleteClient:  (id: string) => Promise<void>;
-  addWebsite:    (website: Partial<Website>) => Promise<void>;
-  addCredential: (credential: Partial<Credential>) => Promise<void>;
-  addTask:       (task: Partial<Task>) => Promise<void>;
-  updateTask:    (id: string, status: Task['status']) => Promise<void>;
-  deleteTask:    (id: string) => Promise<void>;
-  addReminder:   (reminder: Partial<Reminder>) => Promise<void>;
-  deleteReminder:(id: string) => Promise<void>;
-  addPayment:    (payment: Partial<Payment>) => Promise<void>;
-  updatePayment: (id: string, updates: Partial<Payment>) => Promise<void>;
-  deletePayment: (id: string) => Promise<void>;
+  verifyPin:       (pin: string) => boolean;
+  logout:          () => void;
+  addClient:       (client: Partial<Client>) => Promise<void>;
+  updateClient:    (id: string, client: Partial<Client>) => Promise<void>;
+  deleteClient:    (id: string) => Promise<void>;
+  addWebsite:      (website: Partial<Website>) => Promise<void>;
+  updateWebsite:   (id: string, website: Partial<Website>) => Promise<void>;
+  deleteWebsite:   (id: string) => Promise<void>;
+  addCredential:   (credential: Partial<Credential>) => Promise<void>;
+  deleteCredential:(id: string) => Promise<void>;
+  addTask:         (task: Partial<Task>) => Promise<void>;
+  updateTask:      (id: string, status: Task['status']) => Promise<void>;
+  deleteTask:      (id: string) => Promise<void>;
+  addReminder:     (reminder: Partial<Reminder>) => Promise<void>;
+  markReminderRead:(id: string) => Promise<void>;
+  deleteReminder:  (id: string) => Promise<void>;
+  addPayment:      (payment: Partial<Payment>) => Promise<void>;
+  updatePayment:   (id: string, updates: Partial<Payment>) => Promise<void>;
+  deletePayment:   (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -187,6 +191,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     finally     { setIsSaving(false); }
   };
 
+  const updateWebsite = async (id: string, website: Partial<Website>) => {
+    setIsSaving(true);
+    try {
+      const r = await api.put('/api/websites', { id, ...website });
+      if (!r.ok) throw new Error(await r.text());
+      await invalidate();
+      toast({ title: 'Updated', description: 'Website updated!' });
+    } catch (e) { handleError('updateWebsite', e); }
+    finally     { setIsSaving(false); }
+  };
+
+  const deleteWebsite = async (id: string) => {
+    setIsSaving(true);
+    try {
+      const r = await api.del('/api/websites', { id });
+      if (!r.ok) throw new Error(await r.text());
+      await invalidate();
+      toast({ title: 'Deleted', description: 'Website removed.' });
+    } catch (e) { handleError('deleteWebsite', e); }
+    finally     { setIsSaving(false); }
+  };
+
   // ── Credentials ───────────────────────────────────────────────────────────
   const addCredential = async (credential: Partial<Credential>) => {
     setIsSaving(true);
@@ -196,6 +222,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await invalidate();
       toast({ title: 'Secured', description: 'Credential saved to vault!' });
     } catch (e) { handleError('addCredential', e); }
+    finally     { setIsSaving(false); }
+  };
+
+  const deleteCredential = async (id: string) => {
+    setIsSaving(true);
+    try {
+      const r = await api.del('/api/credentials', { id });
+      if (!r.ok) throw new Error(await r.text());
+      await invalidate();
+      toast({ title: 'Deleted', description: 'Credential removed.' });
+    } catch (e) { handleError('deleteCredential', e); }
     finally     { setIsSaving(false); }
   };
 

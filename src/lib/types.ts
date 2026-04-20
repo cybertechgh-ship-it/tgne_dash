@@ -72,6 +72,7 @@ export interface Reminder {
   type: 'Web Management' | 'Domain' | 'Hosting' | 'Payment';
   title: string;
   date: string;
+  isRead: boolean;
   details: string;
 }
 

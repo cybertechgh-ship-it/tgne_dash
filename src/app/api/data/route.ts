@@ -72,6 +72,7 @@ export async function GET() {
       })),
       reminders: allReminders.map((r) => ({
         ...r,
+        isRead:  r.isRead  ?? false,
         details: r.details ?? '',
       })),
       payments: allPayments.map((p) => ({
