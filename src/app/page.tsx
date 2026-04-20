@@ -9,9 +9,7 @@ import {
   Globe, 
   CreditCard, 
   Calendar, 
-  ArrowUpRight,
   TrendingUp,
-  AlertCircle,
   CheckSquare,
   Sparkles,
   Zap,
@@ -49,7 +47,6 @@ export default function Dashboard() {
     { label: 'Total Revenue', value: `GHS ${totalRevenue.toLocaleString()}`, icon: CreditCard, trend: `+GHS ${pendingRevenue.toLocaleString()} pending`, color: 'text-amber-500' },
   ];
 
-  // Build chart from real payment data grouped by month
   const chartData = useMemo(() => {
     const monthTotals: Record<string, number> = {};
     data.payments
@@ -75,7 +72,6 @@ export default function Dashboard() {
     .sort((a, b) => new Date(a.expiryDate!).getTime() - new Date(b.expiryDate!).getTime())
     .slice(0, 3);
 
-  // Generate dynamic AI Insight based on real data
   const aiInsight = useMemo(() => {
     if (data.clients.length === 0) return "Welcome to TGNE CORE. Start by adding your first client to generate insights.";
     
@@ -83,7 +79,7 @@ export default function Dashboard() {
     const soonExpiring = data.websites.filter(w => {
       if (!w.expiryDate) return false;
       const diff = new Date(w.expiryDate).getTime() - new Date().getTime();
-      return diff > 0 && diff < (30 * 24 * 60 * 60 * 1000); // 30 days
+      return diff > 0 && diff < (30 * 24 * 60 * 60 * 1000);
     }).length;
 
     if (overduePayments > 0) {
@@ -108,6 +104,7 @@ export default function Dashboard() {
   }, [data]);
 
   return (
+    <DashboardLayout>
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -202,7 +199,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Activity Log - NEW */}
+          {/* Activity Log */}
           <Card className="premium-card">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
@@ -273,7 +270,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="relative z-10">
                <p className="text-base text-foreground/90 leading-relaxed font-medium italic">
-                "{aiInsight}"
+                &ldquo;{aiInsight}&rdquo;
                </p>
                <Button className="mt-6 w-full premium-button bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12 rounded-xl shadow-lg shadow-primary/20" asChild>
                  <Link href="/tasks">View Action Plan</Link>
