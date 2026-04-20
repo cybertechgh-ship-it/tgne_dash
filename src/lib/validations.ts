@@ -14,7 +14,7 @@ export const createClientSchema = z.object({
   phone:        z.string().max(50).optional().nullable(),
   email:        z.string().email('Invalid email').max(255).optional().nullable(),
   location:     z.string().max(500).optional().nullable(),
-  avatarUrl:    z.string().max(1000).optional().nullable(),
+  avatarUrl:    z.string().optional().nullable(),
   notes:        z.string().max(5000).optional().nullable(),
 });
 
