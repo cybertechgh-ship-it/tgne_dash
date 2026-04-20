@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import Image from 'next/image';
+import { z } from 'zod';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { useApp } from '@/lib/store';
 import {
@@ -33,6 +34,31 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+/** 
+ * Robust schema to validate client data and prevent null values from reaching inputs.
+ * Using transform ensures that any nulls from the database are converted to empty strings.
+ */
+const clientSchema = z.object({
+  name: z.string().min(2, "Full name is required (min 2 chars)"),
+  businessName: z.string().min(2, "Business name is required"),
+  businessType: z.string().nullish().transform(v => v ?? "").default(""),
+  industry: z.string().nullish().transform(v => v ?? "").default(""),
+  email: z.string().email("Invalid email format").or(z.literal("")).nullish().transform(v => v ?? "").default(""),
+  phone: z.string().nullish().transform(v => v ?? "").default(""),
+  preferredContact: z.string().nullish().transform(v => v ?? "").default("email"),
+  country: z.string().nullish().transform(v => v ?? "").default("Ghana"),
+  city: z.string().nullish().transform(v => v ?? "").default(""),
+  avatarUrl: z.string().nullish().transform(v => v ?? "").default(""),
+  notes: z.string().nullish().transform(v => v ?? "").default(""),
+  status: z.string().nullish().transform(v => v ?? "").default("Active"),
+  accountManager: z.string().nullish().transform(v => v ?? "").default(""),
+  tags: z.string().nullish().transform(v => v ?? "").default(""),
+  currency: z.string().nullish().transform(v => v ?? "").default("GHS"),
+  vatEnabled: z.boolean().nullish().transform(v => !!v).default(false),
+  paymentTerms: z.string().nullish().transform(v => v ?? "").default("Due on Receipt"),
+  preferredPayment: z.string().nullish().transform(v => v ?? "").default("Mobile Money"),
+});
 
 const BUSINESS_TYPES = ['LLC', 'Sole Trader', 'Partnership', 'Corporation', 'NGO', 'Startup', 'Other'];
 const INDUSTRIES = ['E-commerce', 'Healthcare', 'Finance', 'Education', 'Real Estate', 'Technology', 'Media', 'Hospitality', 'Retail', 'Other'];
@@ -120,6 +146,7 @@ export default function ClientsPage() {
   const [form, setForm]       = useState<Partial<Client>>(blank());
   const [editData, setEditData] = useState<Partial<Client>>({});
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [errors, setErrors]   = useState<Record<string, string>>({});
 
   // Filters
   const [searchTerm, setSearchTerm]   = useState('');
@@ -184,14 +211,28 @@ export default function ClientsPage() {
 
   const handleAddClient = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const validation = clientSchema.safeParse(form);
+    if (!validation.success) {
+      const newErrors: Record<string, string> = {};
+      validation.error.errors.forEach((err) => {
+        if (err.path[0]) newErrors[err.path[0].toString()] = err.message;
+      });
+      setErrors(newErrors);
+      toast({ variant: 'destructive', title: 'Validation Error', description: 'Please check required fields.' });
+      return;
+    }
+
     const location = [form.city, form.country].filter(Boolean).join(', ');
     addClient({
-      ...form,
+      ...validation.data,
       location,
-      avatarUrl: form.avatarUrl || `https://picsum.photos/seed/${Math.random()}/600/400`,
+      avatarUrl: validation.data.avatarUrl || `https://picsum.photos/seed/${Math.random()}/600/400`,
     });
+
     setIsAddOpen(false);
     setForm(blank());
+    setErrors({});
     setLogoPreview(null);
     setStep(1);
   };
@@ -199,18 +240,31 @@ export default function ClientsPage() {
   const handleUpdateClient = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClient) return;
-    const location = [editData.city ?? selectedClient.city, editData.country ?? selectedClient.country]
+
+    const validation = clientSchema.safeParse(editData);
+    if (!validation.success) {
+      const newErrors: Record<string, string> = {};
+      validation.error.errors.forEach((err) => {
+        if (err.path[0]) newErrors[err.path[0].toString()] = err.message;
+      });
+      setErrors(newErrors);
+      return;
+    }
+
+    const location = [validation.data.city, validation.data.country]
       .filter(Boolean).join(', ');
-    updateClient(selectedClient.id, { ...editData, location });
-    setSelectedClient({ ...selectedClient, ...editData, location } as Client);
+    updateClient(selectedClient.id, { ...validation.data, location });
+    setSelectedClient({ ...selectedClient, ...validation.data, location } as Client);
     setIsEditing(false);
     setLogoPreview(null);
+    setErrors({});
   };
 
   const startEditing = () => {
     if (!selectedClient) return;
     setEditData({ ...selectedClient });
     setLogoPreview(selectedClient.avatarUrl ?? null);
+    setErrors({});
     setIsEditing(true);
   };
 
@@ -304,7 +358,8 @@ export default function ClientsPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <Label>Business Name <span className="text-destructive">*</span></Label>
-                          <Input required value={form.businessName} onChange={e => set('businessName')(e.target.value)} placeholder="e.g. Kofi Brands Ltd" />
+                          <Input value={form.businessName} onChange={e => set('businessName')(e.target.value)} placeholder="e.g. Kofi Brands Ltd" className={errors.businessName ? 'border-destructive' : ''} />
+                          {errors.businessName && <p className="text-[10px] font-medium text-destructive">{errors.businessName}</p>}
                         </div>
                         <div className="space-y-1.5">
                           <Label>Business Type</Label>
@@ -337,15 +392,18 @@ export default function ClientsPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5 sm:col-span-2">
                           <Label>Full Name <span className="text-destructive">*</span></Label>
-                          <Input required value={form.name} onChange={e => set('name')(e.target.value)} placeholder="e.g. Kofi Mensah" />
+                          <Input value={form.name} onChange={e => set('name')(e.target.value)} placeholder="e.g. Kofi Mensah" className={errors.name ? 'border-destructive' : ''} />
+                          {errors.name && <p className="text-[10px] font-medium text-destructive">{errors.name}</p>}
                         </div>
                         <div className="space-y-1.5">
                           <Label>Email</Label>
-                          <Input type="email" value={form.email} onChange={e => set('email')(e.target.value)} placeholder="kofi@company.com" />
+                          <Input type="email" value={form.email} onChange={e => set('email')(e.target.value)} placeholder="kofi@company.com" className={errors.email ? 'border-destructive' : ''} />
+                          {errors.email && <p className="text-[10px] font-medium text-destructive">{errors.email}</p>}
                         </div>
                         <div className="space-y-1.5">
                           <Label>Phone</Label>
-                          <Input value={form.phone} onChange={e => set('phone')(e.target.value)} placeholder="+233 24 000 0000" />
+                          <Input value={form.phone} onChange={e => set('phone')(e.target.value)} placeholder="+233 24 000 0000" className={errors.phone ? 'border-destructive' : ''} />
+                          {errors.phone && <p className="text-[10px] font-medium text-destructive">{errors.phone}</p>}
                         </div>
                         <div className="space-y-1.5">
                           <Label>Preferred Contact</Label>
@@ -460,8 +518,20 @@ export default function ClientsPage() {
                     <Button
                       type="button"
                       className="gap-2 bg-primary text-primary-foreground"
-                      disabled={!form.name || !form.businessName}
-                      onClick={() => setStep(2)}
+                      onClick={() => {
+                        // Validate only Step 1 fields before proceeding
+                        const step1Result = clientSchema.pick({ name: true, businessName: true, email: true }).safeParse(form);
+                        if (!step1Result.success) {
+                          const newErrors: Record<string, string> = {};
+                          step1Result.error.errors.forEach((err) => {
+                            if (err.path[0]) newErrors[err.path[0].toString()] = err.message;
+                          });
+                          setErrors(newErrors);
+                          return;
+                        }
+                        setErrors({});
+                        setStep(2);
+                      }}
                     >
                       Next: Business Setup <ChevronRight size={16} />
                     </Button>
