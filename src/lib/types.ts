@@ -1,13 +1,27 @@
-
 export interface Client {
   id: string;
+  // ── Identity ──────────────────────────────────────────────────
   name: string;
+  businessName: string;
+  businessType?: string;  // 'LLC' | 'Sole Trader' | 'Partnership' | 'NGO' | 'Other'
+  industry?: string;      // 'E-commerce' | 'Healthcare' | 'Finance' | etc.
   email?: string;
   phone?: string;
-  businessName: string;
-  location: string;
-  notes?: string;
+  preferredContact?: 'email' | 'phone' | 'whatsapp';
+  country?: string;
+  city?: string;
+  location: string;       // backward-compat composite (city, country)
   avatarUrl?: string;
+  notes?: string;
+  // ── Business Setup ────────────────────────────────────────────
+  status?: 'Active' | 'Prospect' | 'On Hold' | 'Inactive';
+  accountManager?: string;
+  tags?: string;          // stored as comma-separated string in DB
+  currency?: string;      // default 'GHS'
+  vatEnabled?: boolean;
+  paymentTerms?: string;  // 'Due on Receipt' | 'Net 15' | 'Net 30' | 'Net 60'
+  preferredPayment?: 'Bank Transfer' | 'Mobile Money' | 'Cash' | 'Card';
+  // ── Timestamps ────────────────────────────────────────────────
   createdAt: string;
   updatedAt: string;
 }
@@ -59,7 +73,6 @@ export interface Reminder {
   title: string;
   date: string;
   details: string;
-  isRead: boolean; // exists in DB schema — was missing from this type
 }
 
 export interface AppData {

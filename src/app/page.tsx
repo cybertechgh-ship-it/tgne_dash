@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { useApp } from '@/lib/store';
@@ -34,12 +34,6 @@ import {
 
 export default function Dashboard() {
   const { data } = useApp();
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
   const totalRevenue = useMemo(() => 
     data.websites.reduce((sum, w) => sum + (w.paymentStatus === 'Paid' ? (w.projectPrice || 0) : 0), 0)
   , [data.websites]);
@@ -55,13 +49,26 @@ export default function Dashboard() {
     { label: 'Total Revenue', value: `GHS ${totalRevenue.toLocaleString()}`, icon: CreditCard, trend: `+GHS ${pendingRevenue.toLocaleString()} pending`, color: 'text-amber-500' },
   ];
 
-  const chartData = [
-    { name: 'Oct', revenue: 1500 },
-    { name: 'Nov', revenue: 2700 },
-    { name: 'Dec', revenue: 3200 },
-    { name: 'Jan', revenue: 4500 },
-    { name: 'Feb', revenue: totalRevenue > 0 ? totalRevenue : 5200 },
-  ];
+  // Build chart from real payment data grouped by month
+  const chartData = useMemo(() => {
+    const monthTotals: Record<string, number> = {};
+    data.payments
+      .filter(p => p.status === 'PAID')
+      .forEach(p => {
+        const d = new Date(p.paymentDate);
+        if (isNaN(d.getTime())) return;
+        const key = d.toLocaleString('default', { month: 'short' });
+        monthTotals[key] = (monthTotals[key] || 0) + p.amount;
+      });
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const entries = Object.entries(monthTotals);
+    if (entries.length === 0) {
+      return months.slice(0, 5).map(name => ({ name, revenue: 0 }));
+    }
+    return entries
+      .sort((a, b) => months.indexOf(a[0]) - months.indexOf(b[0]))
+      .map(([name, revenue]) => ({ name, revenue }));
+  }, [data.payments]);
 
   const upcomingRenewals = data.websites
     .filter(w => w.expiryDate)
@@ -88,8 +95,19 @@ export default function Dashboard() {
     return `Revenue is holding steady at GHS ${totalRevenue.toLocaleString()}. You're doing great! Your next goal could be increasing your client base by 10%.`;
   }, [data, totalRevenue]);
 
+  const recentActivity = useMemo(() => {
+    const items = [
+      ...data.clients.map(c => ({ label: `New Client: ${c.businessName}`, time: c.createdAt })),
+      ...data.payments.map(p => ({ label: `Invoice ${p.status === 'PAID' ? 'Paid' : 'Pending'}: GHS ${p.amount}`, time: p.createdAt })),
+      ...data.tasks.filter(t => t.status === 'Completed').map(t => ({ label: `Task Done: ${t.description}`, time: t.dueDate || '' })),
+    ]
+    .filter(i => i.time)
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+    .slice(0, 5);
+    return items;
+  }, [data]);
+
   return (
-    <DashboardLayout>
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -194,22 +212,19 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                {[...data.clients, ...data.tasks].slice(-5).reverse().map((item, idx) => (
+                {recentActivity.length > 0 ? recentActivity.map((item, idx) => (
                   <div key={idx} className="flex items-start gap-3 border-b border-muted pb-4 last:border-0 last:pb-0">
                     <div className="p-2 bg-muted rounded-full">
                       <History size={14} className="text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-foreground">
-                        {'businessName' in item ? `New Client: ${item.businessName}` : `Task Updated: ${item.description}`}
-                      </p>
+                      <p className="text-xs font-bold text-foreground">{item.label}</p>
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        {new Date().toLocaleTimeString()} • Verified Action
+                        {new Date(item.time).toLocaleDateString()} • Verified Action
                       </p>
                     </div>
                   </div>
-                ))}
-                {data.clients.length === 0 && (
+                )) : (
                   <p className="text-sm text-muted-foreground italic text-center py-4">No activity recorded yet.</p>
                 )}
               </div>

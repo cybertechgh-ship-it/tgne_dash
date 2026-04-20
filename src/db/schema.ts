@@ -1,11 +1,7 @@
 /**
  * src/db/schema.ts
- * Drizzle ORM schema — mirrors the existing Prisma schema exactly.
- * Table names and column names match what Prisma created in Neon
- * so no migration is needed; existing data is preserved.
- *
- * Prisma convention: PascalCase model name → quoted PascalCase table ("Client")
- * Prisma convention: camelCase field name  → quoted camelCase column ("businessName")
+ * Drizzle ORM schema — Client table updated with CRM fields.
+ * Run `npm run db:push` after updating this file to sync with Neon.
  */
 
 import {
@@ -19,9 +15,6 @@ import {
 import { relations } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Generate a cuid2 — same format as Prisma's @default(cuid()) */
 const cuid = () => createId();
 
 // ─── Client ───────────────────────────────────────────────────────────────────
@@ -29,19 +22,35 @@ const cuid = () => createId();
 export const clients = pgTable(
   'Client',
   {
-    id:           text('id').primaryKey().$defaultFn(cuid),
-    name:         text('name').notNull(),
-    businessName: text('businessName').notNull(),
-    phone:        text('phone'),
-    email:        text('email'),
-    location:     text('location'),
-    avatarUrl:    text('avatarUrl'),
-    notes:        text('notes'),
-    createdAt:    timestamp('createdAt', { precision: 3, mode: 'string' }).defaultNow().notNull(),
-    updatedAt:    timestamp('updatedAt', { precision: 3, mode: 'string' }).defaultNow().notNull(),
+    id:               text('id').primaryKey().$defaultFn(cuid),
+    // Identity
+    name:             text('name').notNull(),
+    businessName:     text('businessName').notNull(),
+    businessType:     text('businessType'),
+    industry:         text('industry'),
+    email:            text('email'),
+    phone:            text('phone'),
+    preferredContact: text('preferredContact'),
+    country:          text('country'),
+    city:             text('city'),
+    location:         text('location'),
+    avatarUrl:        text('avatarUrl'),
+    notes:            text('notes'),
+    // Business Setup
+    status:           text('status').default('Active'),
+    accountManager:   text('accountManager'),
+    tags:             text('tags'),       // comma-separated
+    currency:         text('currency').default('GHS'),
+    vatEnabled:       boolean('vatEnabled').default(false),
+    paymentTerms:     text('paymentTerms'),
+    preferredPayment: text('preferredPayment'),
+    // Timestamps
+    createdAt: timestamp('createdAt', { precision: 3, mode: 'string' }).defaultNow().notNull(),
+    updatedAt: timestamp('updatedAt', { precision: 3, mode: 'string' }).defaultNow().notNull(),
   },
   (t) => ({
-    emailIdx: index('Client_email_idx').on(t.email),
+    emailIdx:  index('Client_email_idx').on(t.email),
+    statusIdx: index('Client_status_idx').on(t.status),
   })
 );
 
@@ -75,7 +84,7 @@ export const credentials = pgTable(
     clientId: text('clientId').notNull().references(() => clients.id, { onDelete: 'cascade' }),
     type:     text('type').notNull(),
     username: text('username').notNull(),
-    password: text('password').notNull(), // stored as base64
+    password: text('password').notNull(),
     url:      text('url'),
   },
   (t) => ({
@@ -146,33 +155,15 @@ export const clientRelations = relations(clients, ({ many }) => ({
   payments:    many(payments),
 }));
 
-export const websiteRelations = relations(websites, ({ one }) => ({
-  client: one(clients, { fields: [websites.clientId], references: [clients.id] }),
-}));
-
-export const credentialRelations = relations(credentials, ({ one }) => ({
-  client: one(clients, { fields: [credentials.clientId], references: [clients.id] }),
-}));
-
-export const taskRelations = relations(tasks, ({ one }) => ({
-  client: one(clients, { fields: [tasks.clientId], references: [clients.id] }),
-}));
-
-export const paymentRelations = relations(payments, ({ one }) => ({
-  client: one(clients, { fields: [payments.clientId], references: [clients.id] }),
-}));
+export const websiteRelations  = relations(websites,    ({ one }) => ({ client: one(clients, { fields: [websites.clientId],    references: [clients.id] }) }));
+export const credentialRelations = relations(credentials, ({ one }) => ({ client: one(clients, { fields: [credentials.clientId], references: [clients.id] }) }));
+export const taskRelations     = relations(tasks,       ({ one }) => ({ client: one(clients, { fields: [tasks.clientId],       references: [clients.id] }) }));
+export const paymentRelations  = relations(payments,    ({ one }) => ({ client: one(clients, { fields: [payments.clientId],    references: [clients.id] }) }));
 
 // ─── Inferred Types ───────────────────────────────────────────────────────────
 
-export type ClientRow    = typeof clients.$inferSelect;
-export type NewClient    = typeof clients.$inferInsert;
-export type WebsiteRow   = typeof websites.$inferSelect;
-export type NewWebsite   = typeof websites.$inferInsert;
-export type CredRow      = typeof credentials.$inferSelect;
-export type NewCred      = typeof credentials.$inferInsert;
-export type TaskRow      = typeof tasks.$inferSelect;
-export type NewTask      = typeof tasks.$inferInsert;
-export type ReminderRow  = typeof reminders.$inferSelect;
-export type NewReminder  = typeof reminders.$inferInsert;
-export type PaymentRow   = typeof payments.$inferSelect;
-export type NewPayment   = typeof payments.$inferInsert;
+export type ClientRow   = typeof clients.$inferSelect;
+export type NewClient   = typeof clients.$inferInsert;
+export type WebsiteRow  = typeof websites.$inferSelect;
+export type TaskRow     = typeof tasks.$inferSelect;
+export type PaymentRow  = typeof payments.$inferSelect;

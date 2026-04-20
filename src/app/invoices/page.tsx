@@ -41,6 +41,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Payment } from '@/lib/types';
+import { generateInvoicePDF } from '@/lib/generate-invoice-pdf';
 
 export default function InvoicesPage() {
   const { data, addPayment, updatePayment } = useApp();
@@ -219,6 +220,18 @@ export default function InvoicesPage() {
                           View Receipt
                         </Button>
                       )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-2 text-xs"
+                        onClick={() => {
+                          const client = data.clients.find(c => c.id === payment.clientId);
+                          if (client) generateInvoicePDF(payment, client);
+                        }}
+                      >
+                        <Download size={14} />
+                        PDF
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -301,8 +314,13 @@ export default function InvoicesPage() {
                     </div>
                     <p className="text-xs font-bold leading-tight">Secured Digital Copy<br/><span className="opacity-70 font-normal">Stored on TGNE Ledger</span></p>
                   </div>
-                  <Button variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white font-bold text-xs h-8">
-                    Print Receipt
+                  <Button variant="outline" className="bg-white/10 border-white/20 hover:bg-white/20 text-white font-bold text-xs h-8"
+                    onClick={() => {
+                      const client = data.clients.find(c => c.id === selectedPayment.clientId);
+                      if (client) generateInvoicePDF(selectedPayment, client);
+                    }}
+                  >
+                    Download PDF
                   </Button>
                 </div>
               </div>

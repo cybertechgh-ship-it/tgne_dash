@@ -14,10 +14,10 @@ function makeQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        // Data is considered fresh for 30 seconds — avoids redundant refetches
-        staleTime: 30 * 1000,
-        // Keep unused cache for 5 minutes
-        gcTime: 5 * 60 * 1000,
+        // Data is considered fresh for 2 minutes — avoids redundant refetches
+        staleTime: 2 * 60 * 1000,
+        // Keep unused cache for 10 minutes
+        gcTime: 10 * 60 * 1000,
         // Retry once on failure with exponential backoff
         retry: 1,
         retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10_000),
