@@ -10,7 +10,7 @@
  *  - No more manual refreshData() pattern — TanStack handles it automatically
  */
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { AppData, Client, Website, Credential, Task, Reminder, Payment } from './types';
@@ -93,22 +93,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isSaving, setIsSaving] = React.useState(false);
 
   // ── Data fetching via TanStack Query ──────────────────────────────────────
-  const { data = EMPTY_DATA, isLoading } = useQuery<AppData>({
+  const { data = EMPTY_DATA, isLoading, error: dataError } = useQuery<AppData>({
     queryKey: queryKeys.allData,
     queryFn: () => api.get('/api/data'),
-    staleTime: 30 * 1000,       // treat data fresh for 30 s
-    gcTime:    5 * 60 * 1000,   // keep in cache for 5 min
+    staleTime: 30 * 1000,
+    gcTime:    5 * 60 * 1000,
     retry: 2,
-    meta: {
-      onError: () => {
-        toast({
-          variant: 'destructive',
-          title: 'Connection Error',
-          description: 'Could not load data from the database. Check your connection.',
-        });
-      },
-    },
   });
+
+  // TanStack Query v5 removed meta.onError — use useEffect instead
+  useEffect(() => {
+    if (dataError) {
+      toast({
+        variant: 'destructive',
+        title: 'Connection Error',
+        description: 'Could not load data from the database. Check your connection.',
+      });
+    }
+  }, [dataError]);
 
   /** Invalidate the master cache — TanStack refetches automatically */
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.allData });

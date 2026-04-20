@@ -59,6 +59,7 @@ export interface Reminder {
   title: string;
   date: string;
   details: string;
+  isRead: boolean; // exists in DB schema — was missing from this type
 }
 
 export interface AppData {

@@ -53,6 +53,17 @@ export async function GET() {
       credentials: allCredentials.map((c) => ({
         ...c,
         url: c.url ?? undefined,
+        // Passwords are base64-encoded on write (credentials/route.ts POST).
+        // Decode them here so the UI shows the original plain-text password.
+        password: (() => {
+          try {
+            const decoded = Buffer.from(c.password, 'base64').toString('utf-8');
+            // Guard: if decoding produces the same string it was likely plain-text (legacy row)
+            return decoded;
+          } catch {
+            return c.password;
+          }
+        })(),
       })),
       tasks: allTasks.map((t) => ({
         ...t,

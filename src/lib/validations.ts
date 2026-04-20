@@ -31,7 +31,9 @@ export const deleteByIdSchema = z.object({
 export const createWebsiteSchema = z.object({
   clientId:        z.string().min(1, 'clientId is required'),
   domainName:      z.string().min(1, 'Domain name is required').max(255),
-  url:             z.string().url('Invalid URL').max(500).optional().nullable(),
+  // Fix: z.string().url() rejects empty strings and bare domains (e.g. "example.com")
+  // causing silent 400 errors when users submit websites without a full URL.
+  url:             z.string().max(500).optional().nullable(),
   hostingProvider: z.string().max(255).optional().nullable(),
   platform:        z.enum(['WordPress', 'Shopify', 'Custom', 'Other']).optional().nullable(),
   dateCreated:     z.string().optional().nullable(),
@@ -51,7 +53,8 @@ export const createCredentialSchema = z.object({
   type:     z.enum(['cPanel', 'Hosting', 'Domain Registrar', 'WordPress Admin', 'Other']),
   username: z.string().min(1, 'Username is required').max(255),
   password: z.string().min(1, 'Password is required').max(1000),
-  url:      z.string().url('Invalid URL').max(500).optional().nullable(),
+  // Fix: same as website url — accept any string, not just strict RFC URLs
+  url:      z.string().max(500).optional().nullable(),
 });
 
 // ─── Task ─────────────────────────────────────────────────────────────────────
