@@ -21,6 +21,8 @@ import {
   FileText,
   Download,
   Shield,
+  Mail,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -43,11 +45,29 @@ const navItems = [
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname  = usePathname();
   const router    = useRouter();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [aiOpen,     setAiOpen]     = useState(false);
-  const [isDark,     setIsDark]     = useState(false);
-  const [mounted,    setMounted]    = useState(false);
+  const [mobileOpen,    setMobileOpen]    = useState(false);
+  const [aiOpen,        setAiOpen]        = useState(false);
+  const [isDark,        setIsDark]        = useState(false);
+  const [mounted,       setMounted]       = useState(false);
+  const [digestSending, setDigestSending] = useState(false);
   const { data, isAuthorized, logout } = useApp();
+
+  const handleSendDigest = async () => {
+    setDigestSending(true);
+    try {
+      const res = await fetch('/api/email-digest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      const json = await res.json();
+      if (res.ok) {
+        alert(`Digest sent to ${json.to}`);
+      } else {
+        alert(`Failed: ${json.error}\n${json.details ?? ''}`);
+      }
+    } catch (e) {
+      alert(`Error: ${e}`);
+    } finally {
+      setDigestSending(false);
+    }
+  };
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -194,6 +214,21 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               onClick={() => exportFullReportPdf(data.clients, data.websites, data.payments, data.tasks, data.reminders)}
             >
               <FileText size={13} /> Full Agency Report (PDF)
+            </Button>
+
+            {/* Email Digest */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-9 text-xs gap-1.5 border-primary/20 hover:border-primary/50 hover:bg-primary/5 text-primary/80 hover:text-primary"
+              onClick={handleSendDigest}
+              disabled={digestSending}
+              title="Send daily digest email"
+            >
+              {digestSending
+                ? <><Loader2 size={13} className="animate-spin" /> Sending&hellip;</>
+                : <><Mail size={13} /> Send Daily Digest</>
+              }
             </Button>
 
             {/* Logout */}

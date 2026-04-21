@@ -17,9 +17,9 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer
 } from 'recharts';
-import { differenceInCalendarDays, parseISO } from 'date-fns';
+import { differenceInCalendarDays, parseISO, format } from 'date-fns';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types ---
 
 type Urgency = 'overdue' | 'urgent' | 'soon' | 'ok';
 
@@ -30,7 +30,7 @@ interface AlertItem {
   icon:      string;
 }
 
-// ─── Global Alert Ticker ──────────────────────────────────────────────────────
+// --- Global Alert Ticker ---
 
 function GlobalAlertTicker({ items }: { items: AlertItem[] }) {
   if (items.length === 0) {
@@ -44,9 +44,7 @@ function GlobalAlertTicker({ items }: { items: AlertItem[] }) {
     );
   }
 
-  // Triple for seamless loop
   const tripled = [...items, ...items, ...items];
-  // Speed: faster for many items, slower for few so each is readable
   const duration = Math.max(20, Math.min(80, items.length * 11));
 
   const urgencyStyle: Record<Urgency, string> = {
@@ -74,7 +72,6 @@ function GlobalAlertTicker({ items }: { items: AlertItem[] }) {
           ? 'bg-gradient-to-r from-orange-500/10 via-background to-orange-500/10 border-orange-400/25'
           : 'bg-gradient-to-r from-primary/8 via-accent/30 to-primary/8 border-primary/15'
     )}>
-      {/* Left label + fade */}
       <div className="absolute left-0 top-0 bottom-0 z-20 flex items-center gap-2 pl-4 pr-10
                       bg-gradient-to-r from-background via-background/95 to-transparent pointer-events-none">
         <Bell size={11} className={cn(
@@ -89,11 +86,9 @@ function GlobalAlertTicker({ items }: { items: AlertItem[] }) {
         </span>
       </div>
 
-      {/* Right fade */}
       <div className="absolute right-0 top-0 bottom-0 z-20 w-10
                       bg-gradient-to-l from-background/90 to-transparent pointer-events-none" />
 
-      {/* Scrolling track */}
       <div
         className="global-alert-ticker flex items-center h-full whitespace-nowrap"
         style={{ paddingLeft: '110px' }}
@@ -140,14 +135,14 @@ function GlobalAlertTicker({ items }: { items: AlertItem[] }) {
   );
 }
 
-// ─── Main Dashboard ───────────────────────────────────────────────────────────
+// --- Main Dashboard ---
 
 export default function Dashboard() {
   const { data } = useApp();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // ── Revenue stats ────────────────────────────────────────────────────────
+  // Revenue stats
   const totalRevenue = useMemo(() =>
     data.payments.filter(p => p.status === 'PAID').reduce((s, p) => s + (p.amount || 0), 0),
   [data.payments]);
@@ -156,18 +151,17 @@ export default function Dashboard() {
     data.payments.filter(p => p.status === 'PENDING').reduce((s, p) => s + (p.amount || 0), 0),
   [data.payments]);
 
-  // ── Build alert items from ALL sources ───────────────────────────────────
+  // Build alert items
   const alertItems = useMemo((): AlertItem[] => {
     if (!mounted) return [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const items: AlertItem[] = [];
 
-    // 1. Reminders
     data.reminders.forEach(r => {
       let d = 999;
       try { d = differenceInCalendarDays(parseISO(r.date), today); } catch {}
-      if (d > 30) return; // only show items within 30 days or overdue
+      if (d > 30) return;
       const urgency: Urgency = d < 0 ? 'overdue' : d === 0 ? 'urgent' : d <= 7 ? 'urgent' : 'soon';
       const icon = r.type === 'Domain' ? '🌐' : r.type === 'Hosting' ? '🖥️' : r.type === 'Payment' ? '💳' : '⚙️';
       const dateLabel =
@@ -178,7 +172,6 @@ export default function Dashboard() {
       items.push({ label: r.title, dateLabel, urgency, icon });
     });
 
-    // 2. Website expiry
     data.websites.forEach(w => {
       if (!w.expiryDate) return;
       let d = 999;
@@ -195,17 +188,15 @@ export default function Dashboard() {
       items.push({ label, dateLabel, urgency, icon: '🌐' });
     });
 
-    // 3. Overdue tasks only
     data.tasks.filter(t => t.status !== 'Completed' && t.dueDate).forEach(t => {
       let d = 999;
       try { d = differenceInCalendarDays(parseISO(t.dueDate!), today); } catch {}
-      if (d >= 0) return; // only overdue
+      if (d >= 0) return;
       const client = data.clients.find(c => c.id === t.clientId);
       const label  = `${t.description.slice(0, 32)}${t.description.length > 32 ? '…' : ''}${client ? ` · ${client.businessName}` : ''}`;
       items.push({ label, dateLabel: `${Math.abs(d)}d OVERDUE`, urgency: 'overdue', icon: '✅' });
     });
 
-    // 4. Pending invoices older than 7 days
     data.payments.filter(p => p.status === 'PENDING').forEach(p => {
       let d = 999;
       try { d = differenceInCalendarDays(today, parseISO(p.paymentDate)); } catch {}
@@ -219,12 +210,11 @@ export default function Dashboard() {
       });
     });
 
-    // Sort: overdue → urgent → soon → ok
     const order: Record<Urgency, number> = { overdue: 0, urgent: 1, soon: 2, ok: 3 };
     return items.sort((a, b) => order[a.urgency] - order[b.urgency]);
   }, [data, mounted]);
 
-  // ── Stats cards ──────────────────────────────────────────────────────────
+  // Stats cards
   const stats = [
     { label: 'Total Clients',   value: data.clients.length,                                     icon: Users,       trend: '+2 this month',                                         color: 'text-primary' },
     { label: 'Active Websites', value: data.websites.length,                                     icon: Globe,       trend: 'All systems live',                                      color: 'text-emerald-500' },
@@ -232,7 +222,7 @@ export default function Dashboard() {
     { label: 'Total Revenue',   value: `GHS ${totalRevenue.toLocaleString()}`,                   icon: CreditCard,  trend: `+GHS ${pendingRevenue.toLocaleString()} pending`,        color: 'text-amber-500' },
   ];
 
-  // ── Chart data ───────────────────────────────────────────────────────────
+  // Chart data
   const chartData = useMemo(() => {
     const monthTotals: Record<string, number> = {};
     data.payments.filter(p => p.status === 'PAID').forEach(p => {
@@ -249,13 +239,28 @@ export default function Dashboard() {
       .map(([name, revenue]) => ({ name, revenue }));
   }, [data.payments]);
 
-  // ── Upcoming renewals ────────────────────────────────────────────────────
-  const upcomingRenewals = data.websites
-    .filter(w => w.expiryDate)
-    .sort((a, b) => new Date(a.expiryDate!).getTime() - new Date(b.expiryDate!).getTime())
-    .slice(0, 3);
+  // Upcoming renewals — ALL sites with expiry, sorted nearest first, with urgency + client info
+  const upcomingRenewals = useMemo(() => {
+    if (!mounted) return [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return data.websites
+      .filter(w => w.expiryDate && w.expiryDate.length > 0)
+      .map(w => {
+        let daysLeft = 9999;
+        try { daysLeft = differenceInCalendarDays(parseISO(w.expiryDate!), today); } catch {}
+        const urgency: Urgency =
+          daysLeft < 0   ? 'overdue' :
+          daysLeft === 0 ? 'urgent'  :
+          daysLeft <= 7  ? 'urgent'  :
+          daysLeft <= 30 ? 'soon'    : 'ok';
+        const client = data.clients.find(c => c.id === w.clientId);
+        return { ...w, daysLeft, urgency, client };
+      })
+      .sort((a, b) => a.daysLeft - b.daysLeft);
+  }, [data.websites, data.clients, mounted]);
 
-  // ── AI insight ───────────────────────────────────────────────────────────
+  // AI insight
   const aiInsight = useMemo(() => {
     if (data.clients.length === 0)
       return "Welcome to TGNE CORE. Start by adding your first client to generate insights.";
@@ -272,7 +277,7 @@ export default function Dashboard() {
     return `Revenue is steady at GHS ${totalRevenue.toLocaleString()}. You're doing great! Consider growing your client base by 10%.`;
   }, [data, totalRevenue]);
 
-  // ── Recent activity ──────────────────────────────────────────────────────
+  // Recent activity
   const recentActivity = useMemo(() => {
     return [
       ...data.clients.map(c  => ({ label: `New Client: ${c.businessName}`,                           time: c.createdAt })),
@@ -288,7 +293,7 @@ export default function Dashboard() {
     <DashboardLayout>
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
-        {/* ── Page Header ─────────────────────────────────────────────────── */}
+        {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-4xl font-extrabold tracking-tight text-foreground flex items-center gap-3">
@@ -304,10 +309,10 @@ export default function Dashboard() {
           </Badge>
         </div>
 
-        {/* ── Global Alert Ticker — right below header ─────────────────────── */}
+        {/* Global Alert Ticker */}
         {mounted && <GlobalAlertTicker items={alertItems} />}
 
-        {/* ── Stats Grid ──────────────────────────────────────────────────── */}
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           {stats.map((stat) => {
             const Icon = stat.icon;
@@ -334,9 +339,8 @@ export default function Dashboard() {
           })}
         </div>
 
-        {/* ── Chart + Activity Feed ────────────────────────────────────────── */}
+        {/* Chart + Activity Feed */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Revenue Line Chart */}
           <Card className="lg:col-span-2 premium-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-bold">Financial Growth</CardTitle>
@@ -375,7 +379,6 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Live Activity Feed */}
           <Card className="premium-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -407,38 +410,92 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* ── Renewals + AI ────────────────────────────────────────────────── */}
+        {/* Renewals + AI */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-          {/* Upcoming Renewals */}
+          {/* Upcoming Renewals — full list, sorted, urgency-coded, clickable */}
           <Card className="premium-card">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-lg font-bold">Upcoming Renewals</CardTitle>
+              {upcomingRenewals.length > 0 && (
+                <Link href="/clients"
+                  className="text-[10px] font-bold text-primary/70 hover:text-primary uppercase tracking-wider flex items-center gap-1 transition-colors">
+                  View all &rarr;
+                </Link>
+              )}
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {upcomingRenewals.map((renewal) => (
-                  <div key={renewal.id}
-                    className="flex items-center gap-3 p-3 rounded-2xl hover:bg-muted/50 border border-transparent hover:border-border transition-all group">
-                    <div className="p-2.5 bg-primary/10 rounded-xl text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                      <Calendar size={16} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold truncate text-foreground">{renewal.domainName}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{renewal.expiryDate}</p>
-                    </div>
-                    <Badge variant="outline"
-                      className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] flex-shrink-0">
-                      ACTIVE
-                    </Badge>
+              {upcomingRenewals.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-3 text-muted-foreground">
+                  <Calendar size={32} className="opacity-20" />
+                  <div className="text-center">
+                    <p className="text-sm font-semibold">No renewals scheduled</p>
+                    <p className="text-xs mt-1">Add an expiry date to a website to start tracking renewals.</p>
                   </div>
-                ))}
-                {upcomingRenewals.length === 0 && (
-                  <p className="text-sm text-muted-foreground italic text-center py-6">
-                    No renewals found.
-                  </p>
-                )}
-              </div>
+                  <Link href="/clients"
+                    className="mt-1 px-4 py-2 rounded-xl bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors">
+                    Manage Websites
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                  {upcomingRenewals.map((renewal) => {
+                    const urgencyBadge: Record<Urgency, string> = {
+                      overdue: 'bg-red-500/15 text-red-600 border-red-400/30',
+                      urgent:  'bg-orange-500/15 text-orange-600 border-orange-400/30',
+                      soon:    'bg-amber-500/10 text-amber-600 border-amber-400/20',
+                      ok:      'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+                    };
+                    const urgencyLabel: Record<Urgency, string> = {
+                      overdue: `${Math.abs(renewal.daysLeft)}d OVERDUE`,
+                      urgent:  renewal.daysLeft === 0 ? 'TODAY' : `${renewal.daysLeft}d left`,
+                      soon:    `${renewal.daysLeft}d left`,
+                      ok:      `${renewal.daysLeft}d left`,
+                    };
+                    const rowBorder: Record<Urgency, string> = {
+                      overdue: 'border-red-400/25 bg-red-500/5',
+                      urgent:  'border-orange-400/25 bg-orange-500/5',
+                      soon:    'border-amber-400/20 bg-amber-500/5',
+                      ok:      'border-transparent',
+                    };
+                    const formattedDate = (() => {
+                      try { return format(parseISO(renewal.expiryDate!), 'dd MMM yyyy'); }
+                      catch { return renewal.expiryDate ?? ''; }
+                    })();
+                    return (
+                      <Link
+                        key={renewal.id}
+                        href="/clients"
+                        className={cn(
+                          'flex items-center gap-3 p-3 rounded-2xl border hover:bg-muted/60 hover:border-border transition-all group',
+                          rowBorder[renewal.urgency]
+                        )}>
+                        <div className={cn(
+                          'p-2.5 rounded-xl flex-shrink-0 group-hover:scale-110 transition-transform',
+                          renewal.urgency === 'overdue' ? 'bg-red-500/15 text-red-500' :
+                          renewal.urgency === 'urgent'  ? 'bg-orange-500/15 text-orange-500' :
+                          renewal.urgency === 'soon'    ? 'bg-amber-500/10 text-amber-600' :
+                                                          'bg-primary/10 text-primary'
+                        )}>
+                          <Calendar size={15} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold truncate text-foreground">{renewal.domainName}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                            {renewal.client?.businessName ? `${renewal.client.businessName} · ` : ''}
+                            Expires {formattedDate}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={cn('text-[9px] font-black flex-shrink-0 px-2', urgencyBadge[renewal.urgency])}>
+                          {urgencyLabel[renewal.urgency]}
+                        </Badge>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
 
