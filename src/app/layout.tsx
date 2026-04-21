@@ -23,6 +23,26 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/*
+         * Dark-mode flash fix — runs inline BEFORE first paint.
+         * Reads localStorage theme or OS preference and applies .dark
+         * to <html> synchronously, preventing the white flash on load.
+         */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var saved = localStorage.getItem('theme');
+                  var sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  if (saved === 'dark' || (!saved && sysDark)) {
+                    document.documentElement.classList.add('dark');
+                  }
+                } catch(e) {}
+              })();
+            `,
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -31,7 +51,6 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased" suppressHydrationWarning>
-        {/* QueryProvider must wrap AppProvider so store can use queryClient */}
         <QueryProvider>
           <AppProvider>
             <SavingIndicator />

@@ -1,7 +1,5 @@
 /**
- * src/db/schema.ts
- * Drizzle ORM schema — Client table updated with CRM fields.
- * Run `npm run db:push` after updating this file to sync with Neon.
+ * src/db/schema.ts  — EXTENDED with audit_logs + client_files tables
  */
 
 import {
@@ -23,7 +21,6 @@ export const clients = pgTable(
   'Client',
   {
     id:               text('id').primaryKey().$defaultFn(cuid),
-    // Identity
     name:             text('name').notNull(),
     businessName:     text('businessName').notNull(),
     businessType:     text('businessType'),
@@ -36,15 +33,13 @@ export const clients = pgTable(
     location:         text('location'),
     avatarUrl:        text('avatarUrl'),
     notes:            text('notes'),
-    // Business Setup
     status:           text('status').default('Active'),
     accountManager:   text('accountManager'),
-    tags:             text('tags'),       // comma-separated
+    tags:             text('tags'),
     currency:         text('currency').default('GHS'),
     vatEnabled:       boolean('vatEnabled').default(false),
     paymentTerms:     text('paymentTerms'),
     preferredPayment: text('preferredPayment'),
-    // Timestamps
     createdAt: timestamp('createdAt', { precision: 3, mode: 'string' }).defaultNow().notNull(),
     updatedAt: timestamp('updatedAt', { precision: 3, mode: 'string' }).defaultNow().notNull(),
   },
@@ -146,6 +141,46 @@ export const payments = pgTable(
   })
 );
 
+// ─── Audit Log  (NEW) ─────────────────────────────────────────────────────────
+
+export const auditLogs = pgTable(
+  'AuditLog',
+  {
+    id:         text('id').primaryKey().$defaultFn(cuid),
+    action:     text('action').notNull(),      // 'CREATE' | 'UPDATE' | 'DELETE'
+    entity:     text('entity').notNull(),      // 'Client' | 'Payment' | etc.
+    entityId:   text('entityId').notNull(),
+    entityName: text('entityName'),            // human-readable label
+    details:    text('details'),               // JSON string of changed fields
+    actor:      text('actor').default('TGNE Admin'),
+    createdAt:  timestamp('createdAt', { precision: 3, mode: 'string' }).defaultNow().notNull(),
+  },
+  (t) => ({
+    entityIdx:    index('AuditLog_entity_idx').on(t.entity),
+    createdAtIdx: index('AuditLog_createdAt_idx').on(t.createdAt),
+  })
+);
+
+// ─── Client Files  (NEW) ──────────────────────────────────────────────────────
+
+export const clientFiles = pgTable(
+  'ClientFile',
+  {
+    id:          text('id').primaryKey().$defaultFn(cuid),
+    clientId:    text('clientId').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+    name:        text('name').notNull(),        // original filename
+    url:         text('url').notNull(),         // Cloudinary URL
+    publicId:    text('publicId'),              // Cloudinary public_id for deletion
+    size:        real('size'),                  // bytes
+    mimeType:    text('mimeType'),
+    category:    text('category').default('document'), // 'document' | 'image' | 'contract' | 'brief'
+    uploadedAt:  timestamp('uploadedAt', { precision: 3, mode: 'string' }).defaultNow().notNull(),
+  },
+  (t) => ({
+    clientIdx: index('ClientFile_clientId_idx').on(t.clientId),
+  })
+);
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const clientRelations = relations(clients, ({ many }) => ({
@@ -153,17 +188,23 @@ export const clientRelations = relations(clients, ({ many }) => ({
   credentials: many(credentials),
   tasks:       many(tasks),
   payments:    many(payments),
+  files:       many(clientFiles),
 }));
 
-export const websiteRelations  = relations(websites,    ({ one }) => ({ client: one(clients, { fields: [websites.clientId],    references: [clients.id] }) }));
+export const websiteRelations    = relations(websites,    ({ one }) => ({ client: one(clients, { fields: [websites.clientId],    references: [clients.id] }) }));
 export const credentialRelations = relations(credentials, ({ one }) => ({ client: one(clients, { fields: [credentials.clientId], references: [clients.id] }) }));
-export const taskRelations     = relations(tasks,       ({ one }) => ({ client: one(clients, { fields: [tasks.clientId],       references: [clients.id] }) }));
-export const paymentRelations  = relations(payments,    ({ one }) => ({ client: one(clients, { fields: [payments.clientId],    references: [clients.id] }) }));
+export const taskRelations       = relations(tasks,       ({ one }) => ({ client: one(clients, { fields: [tasks.clientId],       references: [clients.id] }) }));
+export const paymentRelations    = relations(payments,    ({ one }) => ({ client: one(clients, { fields: [payments.clientId],    references: [clients.id] }) }));
+export const clientFileRelations = relations(clientFiles, ({ one }) => ({ client: one(clients, { fields: [clientFiles.clientId], references: [clients.id] }) }));
 
 // ─── Inferred Types ───────────────────────────────────────────────────────────
 
-export type ClientRow   = typeof clients.$inferSelect;
-export type NewClient   = typeof clients.$inferInsert;
-export type WebsiteRow  = typeof websites.$inferSelect;
-export type TaskRow     = typeof tasks.$inferSelect;
-export type PaymentRow  = typeof payments.$inferSelect;
+export type ClientRow    = typeof clients.$inferSelect;
+export type NewClient    = typeof clients.$inferInsert;
+export type WebsiteRow   = typeof websites.$inferSelect;
+export type TaskRow      = typeof tasks.$inferSelect;
+export type PaymentRow   = typeof payments.$inferSelect;
+export type AuditLogRow  = typeof auditLogs.$inferSelect;
+export type NewAuditLog  = typeof auditLogs.$inferInsert;
+export type ClientFileRow = typeof clientFiles.$inferSelect;
+export type NewClientFile = typeof clientFiles.$inferInsert;
