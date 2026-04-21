@@ -172,11 +172,11 @@ export default function AdminPinPage() {
         </div>
       </div>
 
-      <style jsx global>{`
+      <style>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
-          20%, 60% { transform: translateX(-7px); }
-          40%, 80% { transform: translateX(7px); }
+          20%, 60%  { transform: translateX(-7px); }
+          40%, 80%  { transform: translateX(7px); }
         }
         .animate-shake { animation: shake 0.35s ease-in-out; }
       `}</style>

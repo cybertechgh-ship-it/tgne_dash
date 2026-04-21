@@ -3,21 +3,21 @@
 import React, { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { useApp } from '@/lib/store';
-import { 
-  KeyRound, 
-  Eye, 
-  EyeOff, 
-  Copy, 
-  ExternalLink, 
-  Search, 
+import {
+  KeyRound,
+  Eye,
+  EyeOff,
+  Copy,
+  ExternalLink,
+  Search,
   Lock,
   Plus,
-  MoreVertical,
-  ShieldCheck
+  ShieldCheck,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -37,40 +37,35 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 export default function CredentialsPage() {
-  const { data, addCredential } = useApp();
+  const { data, addCredential, deleteCredential, savingState } = useApp();
   const { toast } = useToast();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  
+  const [searchTerm,        setSearchTerm]        = useState('');
+  const [visiblePasswords,  setVisiblePasswords]  = useState<Record<string, boolean>>({});
+  const [isAddOpen,         setIsAddOpen]         = useState(false);
+  const [deletingId,        setDeletingId]        = useState<string | null>(null);
+
   const [newCred, setNewCred] = useState({
     clientId: '',
-    type: 'WordPress Admin' as any,
+    type:     'WordPress Admin' as 'cPanel' | 'Hosting' | 'Domain Registrar' | 'WordPress Admin' | 'Other',
     username: '',
     password: '',
-    url: ''
+    url:      ''
   });
 
-  const toggleVisibility = (id: string) => {
+  const toggleVisibility = (id: string) =>
     setVisiblePasswords(prev => ({ ...prev, [id]: !prev[id] }));
-  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({
-      title: "Copied!",
-      description: "Password copied to clipboard.",
-    });
+    toast({ title: 'Copied!', description: 'Password copied to clipboard.' });
   };
 
-  const decodePassword = (base64: string) => {
-    try {
-      return atob(base64);
-    } catch (e) {
-      return "Error decoding";
-    }
+  // Passwords stored as base64 — decode for display
+  const decodePassword = (val: string) => {
+    try { return atob(val); } catch { return val; }
   };
 
   const handleAdd = (e: React.FormEvent) => {
@@ -80,26 +75,43 @@ export default function CredentialsPage() {
     setNewCred({ clientId: '', type: 'WordPress Admin', username: '', password: '', url: '' });
   };
 
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    await deleteCredential(id);
+    setDeletingId(null);
+  };
+
   const filteredCreds = data.credentials.filter(c => {
     const client = data.clients.find(cl => cl.id === c.clientId);
-    const searchStr = `${client?.businessName} ${c.type} ${c.username}`.toLowerCase();
-    return searchStr.includes(searchTerm.toLowerCase());
+    return `${client?.businessName} ${c.type} ${c.username}`.toLowerCase()
+      .includes(searchTerm.toLowerCase());
   });
+
+  const typeColors: Record<string, string> = {
+    'cPanel':            'bg-orange-500/10 text-orange-600 border-orange-500/20',
+    'Hosting':           'bg-blue-500/10 text-blue-600 border-blue-500/20',
+    'Domain Registrar':  'bg-purple-500/10 text-purple-600 border-purple-500/20',
+    'WordPress Admin':   'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+    'Other':             'bg-muted text-muted-foreground border-border',
+  };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
+
+        {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:items-center justify-between sm:flex-row gap-4">
           <div>
-            <h1 className="text-3xl font-bold font-headline tracking-tight">Credentials Vault</h1>
-            <p className="text-muted-foreground mt-1">Secure storage for hosting, cPanel, and CMS login details.</p>
+            <h1 className="text-3xl font-bold tracking-tight">Credentials Vault</h1>
+            <p className="text-muted-foreground mt-1">
+              Secure storage for hosting, cPanel, and CMS login details.
+            </p>
           </div>
 
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2 shadow-lg">
-                <Plus size={18} />
-                Store Credential
+              <Button className="gap-2 shadow-lg premium-button bg-primary text-primary-foreground">
+                <Plus size={18} /> Store Credential
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
@@ -108,11 +120,9 @@ export default function CredentialsPage() {
               </DialogHeader>
               <form onSubmit={handleAdd} className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label>Client</Label>
-                  <Select onValueChange={v => setNewCred({...newCred, clientId: v})} required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a client" />
-                    </SelectTrigger>
+                  <Label>Client <span className="text-destructive">*</span></Label>
+                  <Select onValueChange={v => setNewCred({...newCred, clientId: v})}>
+                    <SelectTrigger><SelectValue placeholder="Select a client" /></SelectTrigger>
                     <SelectContent>
                       {data.clients.map(c => (
                         <SelectItem key={c.id} value={c.id}>{c.businessName}</SelectItem>
@@ -122,10 +132,10 @@ export default function CredentialsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Type</Label>
-                  <Select onValueChange={v => setNewCred({...newCred, type: v as any})} defaultValue="WordPress Admin">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                  <Select
+                    value={newCred.type}
+                    onValueChange={v => setNewCred({...newCred, type: v as typeof newCred.type})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cPanel">cPanel</SelectItem>
                       <SelectItem value="Hosting">Hosting</SelectItem>
@@ -136,51 +146,56 @@ export default function CredentialsPage() {
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                   <div className="space-y-2">
-                    <Label htmlFor="user">Username</Label>
-                    <Input id="user" required value={newCred.username} onChange={e => setNewCred({...newCred, username: e.target.value})} />
+                  <div className="space-y-2">
+                    <Label htmlFor="user">Username <span className="text-destructive">*</span></Label>
+                    <Input id="user" required value={newCred.username}
+                      onChange={e => setNewCred({...newCred, username: e.target.value})} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="pass">Password</Label>
-                    <Input id="pass" type="password" required value={newCred.password} onChange={e => setNewCred({...newCred, password: e.target.value})} />
+                    <Label htmlFor="pass">Password <span className="text-destructive">*</span></Label>
+                    <Input id="pass" type="password" required value={newCred.password}
+                      onChange={e => setNewCred({...newCred, password: e.target.value})} />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="url">Login URL</Label>
-                  <Input id="url" type="url" placeholder="https://..." value={newCred.url} onChange={e => setNewCred({...newCred, url: e.target.value})} />
+                  <Input id="url" type="url" placeholder="https://..."
+                    value={newCred.url} onChange={e => setNewCred({...newCred, url: e.target.value})} />
                 </div>
-                <div className="p-3 bg-primary/5 rounded-lg flex gap-3 text-xs text-muted-foreground">
-                  <Lock size={16} className="text-primary shrink-0" />
-                  Passwords are encrypted before local storage using browser-standard Base64 simulation.
+                <div className="p-3 bg-primary/5 rounded-xl flex gap-3 text-xs text-muted-foreground border">
+                  <Lock size={15} className="text-primary flex-shrink-0 mt-0.5" />
+                  Passwords are Base64-encoded before storage and decoded on display.
                 </div>
-                <Button type="submit" className="w-full">Securely Save</Button>
+                <Button type="submit" className="w-full"
+                  disabled={!newCred.clientId || !newCred.username || !newCred.password}>
+                  Securely Save
+                </Button>
               </form>
             </DialogContent>
           </Dialog>
         </div>
 
+        {/* ── Search + Shield ────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-           <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-            <Input 
-              placeholder="Search credentials..." 
-              className="pl-10 bg-white" 
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={17} />
+            <Input placeholder="Search credentials..."
+              className="pl-10 bg-background/50"
+              value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           </div>
-          <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
-            <ShieldCheck size={18} />
-            Encrypted with simulated Base64
+          <div className="flex items-center gap-2 text-sm text-emerald-600 font-semibold">
+            <ShieldCheck size={17} />
+            {filteredCreds.length} credential{filteredCreds.length !== 1 ? 's' : ''} stored
           </div>
         </div>
 
-        <Card className="border-none shadow-sm overflow-hidden">
+        {/* ── Table ─────────────────────────────────────────────────────── */}
+        <div className="rounded-2xl border overflow-hidden shadow-sm">
           <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead>Client / Business</TableHead>
-                <TableHead>Account Type</TableHead>
+            <TableHeader className="bg-muted/40">
+              <TableRow>
+                <TableHead>Client</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Username</TableHead>
                 <TableHead>Password</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -188,42 +203,64 @@ export default function CredentialsPage() {
             </TableHeader>
             <TableBody>
               {filteredCreds.map((cred) => {
-                const client = data.clients.find(cl => cl.id === cred.clientId);
-                const decoded = decodePassword(cred.password);
+                const client    = data.clients.find(cl => cl.id === cred.clientId);
+                const decoded   = decodePassword(cred.password);
                 const isVisible = visiblePasswords[cred.id];
+                const isDeleting = deletingId === cred.id && savingState === 'deleting';
 
                 return (
-                  <TableRow key={cred.id}>
+                  <TableRow key={cred.id} className={cn('group transition-colors', isDeleting && 'opacity-50')}>
                     <TableCell>
-                      <div className="font-medium">{client?.businessName}</div>
-                      <div className="text-xs text-muted-foreground">{client?.name}</div>
+                      <p className="font-semibold text-sm">{client?.businessName ?? '—'}</p>
+                      <p className="text-xs text-muted-foreground">{client?.name}</p>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{cred.type}</Badge>
+                      <Badge variant="outline" className={cn('text-[10px] font-bold', typeColors[cred.type] ?? typeColors['Other'])}>
+                        {cred.type}
+                      </Badge>
                     </TableCell>
                     <TableCell className="font-mono text-xs">{cred.username}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono bg-muted px-2 py-1 rounded">
-                          {isVisible ? decoded : '••••••••••••'}
+                        <span className="font-mono text-xs bg-muted px-2 py-1 rounded-lg select-none">
+                          {isVisible ? decoded : '••••••••••'}
                         </span>
-                        <button onClick={() => toggleVisibility(cred.id)} className="text-muted-foreground hover:text-primary">
-                          {isVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+                        <button
+                          onClick={() => toggleVisibility(cred.id)}
+                          className="text-muted-foreground hover:text-primary transition-colors p-1 rounded">
+                          {isVisible ? <EyeOff size={14} /> : <Eye size={14} />}
                         </button>
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                         <Button size="icon" variant="ghost" onClick={() => copyToClipboard(decoded)} title="Copy Password">
-                          <Copy size={16} />
+                      <div className="flex justify-end gap-1">
+                        <Button size="icon" variant="ghost" className="h-8 w-8"
+                          onClick={() => copyToClipboard(decoded)} title="Copy Password">
+                          <Copy size={14} />
                         </Button>
                         {cred.url && (
-                          <Button size="icon" variant="ghost" asChild title="Open Login Page">
+                          <Button size="icon" variant="ghost" className="h-8 w-8" asChild title="Open Login Page">
                             <a href={cred.url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink size={16} />
+                              <ExternalLink size={14} />
                             </a>
                           </Button>
                         )}
+                        {/* Delete — red while deleting */}
+                        <Button
+                          size="icon" variant="ghost"
+                          onClick={() => handleDelete(cred.id)}
+                          disabled={isDeleting}
+                          title="Delete credential"
+                          className={cn(
+                            'h-8 w-8 opacity-0 group-hover:opacity-100 transition-all',
+                            isDeleting
+                              ? 'opacity-100 bg-red-600 text-white hover:bg-red-700'
+                              : 'text-muted-foreground hover:text-destructive hover:bg-destructive/10'
+                          )}>
+                          {isDeleting
+                            ? <Loader2 size={13} className="animate-spin" />
+                            : <Trash2 size={13} />}
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -231,14 +268,14 @@ export default function CredentialsPage() {
               })}
               {filteredCreds.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                    No credentials found.
+                  <TableCell colSpan={5} className="h-32 text-center text-muted-foreground italic">
+                    No credentials found. Store your first one above.
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
-        </Card>
+        </div>
       </div>
     </DashboardLayout>
   );

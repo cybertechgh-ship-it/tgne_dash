@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, User, Sparkles } from 'lucide-react';
+import { X, Send, Bot, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { aiDataQuery } from '@/ai/flows/ai-data-query';
 import { aiActionExecution } from '@/ai/flows/ai-action-execution';
 import { useApp } from '@/lib/store';
@@ -26,9 +25,9 @@ export function AIChat({ open, onClose }: { open: boolean, onClose: () => void }
   const { addTask, data } = useApp();
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    // Scroll to bottom whenever messages update
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   const handleSend = async () => {
@@ -87,7 +86,7 @@ export function AIChat({ open, onClose }: { open: boolean, onClose: () => void }
         </button>
       </div>
 
-      <ScrollArea className="flex-1 p-4" viewportRef={scrollRef}>
+      <div ref={scrollRef} className="flex-1 p-4 overflow-y-auto">
         <div className="space-y-4">
           {messages.map((msg, i) => (
             <div key={i} className={cn(
@@ -119,7 +118,7 @@ export function AIChat({ open, onClose }: { open: boolean, onClose: () => void }
             </div>
           ))}
         </div>
-      </ScrollArea>
+      </div>
 
       <div className="p-4 border-t bg-white/50">
         <div className="flex gap-2 mb-2">

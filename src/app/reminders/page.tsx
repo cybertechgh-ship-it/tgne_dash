@@ -46,12 +46,13 @@ function AnnouncementBar({ items }: { items: TickerItem[] }) {
     );
   }
 
-  // triple for seamless infinite scroll
-  const trippled = [...items, ...items, ...items];
+  const tripled = [...items, ...items, ...items];
+  // Adjust speed based on number of items so each item is readable
+  const duration = Math.max(25, Math.min(90, items.length * 14));
 
   const urgencyStyle: Record<Urgency, string> = {
-    overdue: 'bg-red-500/15 text-red-500 border-red-400/30',
-    urgent:  'bg-orange-500/15 text-orange-500 border-orange-400/30',
+    overdue: 'bg-red-500/20 text-red-500 border-red-400/40',
+    urgent:  'bg-orange-500/20 text-orange-500 border-orange-400/40',
     soon:    'bg-amber-500/15 text-amber-600 border-amber-400/30',
     ok:      'bg-emerald-500/15 text-emerald-600 border-emerald-400/30',
   };
@@ -62,12 +63,22 @@ function AnnouncementBar({ items }: { items: TickerItem[] }) {
     ok:      '✓ ACTIVE',
   };
 
+  // Use a red tint bar for any overdue items
+  const hasOverdue = items.some(i => i.urgency === 'overdue');
+
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/8 via-accent/40 to-primary/8 border border-primary/15 h-12">
+    <div className={cn(
+      "relative overflow-hidden rounded-2xl h-12 border",
+      hasOverdue
+        ? "bg-gradient-to-r from-red-500/10 via-accent/20 to-red-500/10 border-red-400/25"
+        : "bg-gradient-to-r from-primary/8 via-accent/40 to-primary/8 border-primary/15"
+    )}>
       {/* Left pinned label + fade */}
       <div className="absolute left-0 top-0 bottom-0 z-20 flex items-center gap-2.5 pl-4 pr-8 bg-gradient-to-r from-background via-background/95 to-transparent pointer-events-none">
-        <span className="w-2 h-2 bg-primary rounded-full animate-pulse flex-shrink-0" />
-        <span className="text-[10px] font-black text-primary uppercase tracking-[0.18em] whitespace-nowrap">
+        <span className={cn("w-2 h-2 rounded-full animate-pulse flex-shrink-0",
+          hasOverdue ? "bg-red-500" : "bg-primary")} />
+        <span className={cn("text-[10px] font-black uppercase tracking-[0.18em] whitespace-nowrap",
+          hasOverdue ? "text-red-500" : "text-primary")}>
           🔔 Alerts
         </span>
       </div>
@@ -77,14 +88,18 @@ function AnnouncementBar({ items }: { items: TickerItem[] }) {
 
       {/* Scrolling track */}
       <div className="reminders-ticker flex items-center h-full whitespace-nowrap" style={{ paddingLeft: '130px' }}>
-        {trippled.map((item, i) => (
-          <span key={i} className="inline-flex items-center gap-2.5 mr-10">
+        {tripled.map((item, i) => (
+          <span key={i} className="inline-flex items-center gap-2.5 mr-12">
             <span className={cn('text-[9px] font-black px-2.5 py-0.5 rounded-full border tracking-wide', urgencyStyle[item.urgency])}>
               {urgencyLabel[item.urgency]}
             </span>
-            <span className="text-xs font-semibold text-foreground">{item.typeIcon} {item.label}</span>
-            <span className="text-[10px] font-medium text-muted-foreground">{item.dateLabel}</span>
-            <span className="text-primary/25 font-bold text-sm mx-1">✦</span>
+            <span className="text-xs font-bold text-foreground">{item.typeIcon} {item.label}</span>
+            <span className={cn("text-[10px] font-semibold",
+              item.urgency === 'overdue' ? "text-red-500" :
+              item.urgency === 'urgent'  ? "text-orange-500" : "text-muted-foreground")}>
+              {item.dateLabel}
+            </span>
+            <span className="text-muted-foreground/30 font-bold text-sm mx-1">◆</span>
           </span>
         ))}
       </div>
@@ -95,7 +110,7 @@ function AnnouncementBar({ items }: { items: TickerItem[] }) {
           100% { transform: translateX(-33.333%); }
         }
         .reminders-ticker {
-          animation: reminders-scroll 55s linear infinite;
+          animation: reminders-scroll ${duration}s linear infinite;
           display: flex;
           width: max-content;
         }
@@ -127,31 +142,45 @@ export default function RemindersPage() {
     [data.reminders]
   );
 
-  // Build ticker items from reminders
+  // Build ticker items — overdue items first, then urgent, soon, ok
   const tickerItems = useMemo((): TickerItem[] => {
-    return allReminders.map(r => {
-      let daysLeft = 999;
-      try { daysLeft = differenceInCalendarDays(parseISO(r.date), new Date()); } catch {}
-      const urgency: Urgency =
-        daysLeft < 0  ? 'overdue' :
-        daysLeft <= 7 ? 'urgent'  :
-        daysLeft <= 30? 'soon'    : 'ok';
-      const typeIcon = r.type === 'Domain' ? '🌐' : r.type === 'Hosting' ? '🖥️' : r.type === 'Payment' ? '💳' : '⚙️';
-      const dateLabel = daysLeft < 0
-        ? `${Math.abs(daysLeft)}d overdue`
-        : daysLeft === 0 ? 'Due today'
-        : `${daysLeft}d away · ${r.date}`;
-      return { label: r.title, dateLabel, urgency, typeIcon };
-    });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return allReminders
+      .map(r => {
+        let daysLeft = 999;
+        try { daysLeft = differenceInCalendarDays(parseISO(r.date), today); } catch {}
+
+        const urgency: Urgency =
+          daysLeft < 0   ? 'overdue' :
+          daysLeft === 0 ? 'urgent'  :
+          daysLeft <= 7  ? 'urgent'  :
+          daysLeft <= 30 ? 'soon'    : 'ok';
+
+        const typeIcon = r.type === 'Domain' ? '🌐' : r.type === 'Hosting' ? '🖥️' : r.type === 'Payment' ? '💳' : '⚙️';
+
+        const dateLabel =
+          daysLeft < 0   ? `${Math.abs(daysLeft)}d OVERDUE (due ${r.date})` :
+          daysLeft === 0 ? `DUE TODAY · ${r.date}` :
+          daysLeft <= 7  ? `${daysLeft}d left · ${r.date}` :
+                           `${daysLeft}d away · ${r.date}`;
+
+        return { label: r.title, dateLabel, urgency, typeIcon };
+      })
+      .sort((a, b) => {
+        const order: Record<Urgency, number> = { overdue: 0, urgent: 1, soon: 2, ok: 3 };
+        return order[a.urgency] - order[b.urgency];
+      });
   }, [allReminders]);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'Domain':         return <Globe  size={18} />;
-      case 'Hosting':        return <Server size={18} />;
-      case 'Web Management': return <Settings size={18} />;
+      case 'Domain':         return <Globe     size={18} />;
+      case 'Hosting':        return <Server    size={18} />;
+      case 'Web Management': return <Settings  size={18} />;
       case 'Payment':        return <CreditCard size={18} />;
-      default:               return <Bell  size={18} />;
+      default:               return <Bell      size={18} />;
     }
   };
 
@@ -189,24 +218,58 @@ export default function RemindersPage() {
   const ReminderList = ({ reminders }: { reminders: typeof allReminders }) => (
     <div className="space-y-4">
       {reminders.map((reminder) => {
-        const isUrgent = mounted && new Date(reminder.date) < new Date();
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        let daysLeft = 999;
+        try { daysLeft = differenceInCalendarDays(parseISO(reminder.date), today); } catch {}
+        const isOverdue   = daysLeft < 0;
+        const isDueToday  = daysLeft === 0;
+        const isUrgent    = daysLeft >= 0 && daysLeft <= 7;
+
+        const dueBadgeText = isOverdue   ? `${Math.abs(daysLeft)}d OVERDUE`
+                           : isDueToday  ? 'DUE TODAY'
+                           : isUrgent    ? `${daysLeft}d left`
+                           : null;
+
         return (
-          <Card key={reminder.id} className={cn('group overflow-hidden premium-card border-l-4', isUrgent ? 'border-l-destructive' : 'border-l-primary')}>
+          <Card key={reminder.id} className={cn(
+            'group overflow-hidden premium-card border-l-4 transition-all',
+            isOverdue  ? 'border-l-destructive bg-destructive/5 hover:bg-destructive/8' :
+            isDueToday ? 'border-l-orange-500 bg-orange-500/5' :
+            isUrgent   ? 'border-l-amber-500' :
+                         'border-l-primary'
+          )}>
             <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className={cn('p-3 rounded-2xl border', getTypeColor(reminder.type))}>
                   {getTypeIcon(reminder.type)}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h4 className="font-bold text-base">{reminder.title}</h4>
-                    {isUrgent && <Badge variant="destructive" className="text-[10px] h-4">OVERDUE</Badge>}
+                    {dueBadgeText && (
+                      <Badge
+                        variant={isOverdue ? 'destructive' : 'outline'}
+                        className={cn(
+                          'text-[10px] h-5 font-black uppercase tracking-wider',
+                          !isOverdue && isDueToday && 'border-orange-500 text-orange-600 bg-orange-500/10',
+                          !isOverdue && isUrgent && !isDueToday && 'border-amber-500 text-amber-600 bg-amber-500/10'
+                        )}>
+                        {dueBadgeText}
+                      </Badge>
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">{reminder.details}</p>
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                      <CalendarDays size={14} className="text-primary" />
-                      Scheduled: {reminder.date}
+                  {reminder.details && (
+                    <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">{reminder.details}</p>
+                  )}
+                  <div className="flex items-center gap-3 mt-2 flex-wrap">
+                    <span className={cn(
+                      'text-xs font-semibold flex items-center gap-1',
+                      isOverdue ? 'text-destructive' : isDueToday ? 'text-orange-600' : 'text-muted-foreground'
+                    )}>
+                      <CalendarDays size={13} className={isOverdue ? 'text-destructive' : isDueToday ? 'text-orange-500' : 'text-primary'} />
+                      {isOverdue   ? `Was due: ${reminder.date} (${Math.abs(daysLeft)}d ago)` :
+                       isDueToday  ? `Due today: ${reminder.date}` :
+                                     `Scheduled: ${reminder.date}${isUrgent ? ` · ${daysLeft}d away` : ''}`}
                     </span>
                     <Badge variant="outline" className="text-[10px] uppercase tracking-widest px-2">{reminder.type}</Badge>
                   </div>
@@ -218,8 +281,9 @@ export default function RemindersPage() {
                     <CalendarDays size={14} /> Export
                   </a>
                 </Button>
-                <Button variant="ghost" size="sm"
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10"
+                <Button
+                  variant="ghost" size="sm"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10 hover:text-destructive"
                   onClick={() => deleteReminder(reminder.id)}>
                   <Trash2 size={16} />
                 </Button>
