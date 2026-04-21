@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import Image from 'next/image';
-import { z } from 'zod';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { useApp } from '@/lib/store';
 import {
@@ -35,35 +34,12 @@ import { cn } from '@/lib/utils';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** 
- * Robust schema to validate client data and prevent null values from reaching inputs.
- * Using transform ensures that any nulls from the database are converted to empty strings.
- */
-const clientSchema = z.object({
-  name: z.string().min(2, "Full name is required (min 2 chars)"),
-  businessName: z.string().min(2, "Business name is required"),
-  businessType: z.string().nullish().transform(v => v ?? "").default(""),
-  industry: z.string().nullish().transform(v => v ?? "").default(""),
-  email: z.string().email("Invalid email format").or(z.literal("")).nullish().transform(v => v ?? "").default(""),
-  phone: z.string().nullish().transform(v => v ?? "").default(""),
-  preferredContact: z.string().nullish().transform(v => v ?? "").default("email"),
-  country: z.string().nullish().transform(v => v ?? "").default("Ghana"),
-  city: z.string().nullish().transform(v => v ?? "").default(""),
-  avatarUrl: z.string().nullish().transform(v => v ?? "").default(""),
-  notes: z.string().nullish().transform(v => v ?? "").default(""),
-  status: z.string().nullish().transform(v => v ?? "").default("Active"),
-  accountManager: z.string().nullish().transform(v => v ?? "").default(""),
-  tags: z.string().nullish().transform(v => v ?? "").default(""),
-  currency: z.string().nullish().transform(v => v ?? "").default("GHS"),
-  vatEnabled: z.boolean().nullish().transform(v => !!v).default(false),
-  paymentTerms: z.string().nullish().transform(v => v ?? "").default("Due on Receipt"),
-  preferredPayment: z.string().nullish().transform(v => v ?? "").default("Mobile Money"),
-});
+const BUSINESS_TYPES  = ['LLC', 'Sole Trader', 'Partnership', 'Corporation', 'NGO', 'Startup', 'Other'];
+const INDUSTRIES      = ['E-commerce', 'Healthcare', 'Finance', 'Education', 'Real Estate', 'Technology', 'Media', 'Hospitality', 'Retail', 'Other'];
+const PAYMENT_TERMS   = ['Due on Receipt', 'Net 15', 'Net 30', 'Net 60'];
+const CURRENCIES      = ['GHS', 'USD', 'EUR', 'GBP', 'NGN'];
+const PLATFORMS       = ['WordPress', 'Shopify', 'Custom', 'Other'] as const;
 
-const BUSINESS_TYPES = ['LLC', 'Sole Trader', 'Partnership', 'Corporation', 'NGO', 'Startup', 'Other'];
-const INDUSTRIES = ['E-commerce', 'Healthcare', 'Finance', 'Education', 'Real Estate', 'Technology', 'Media', 'Hospitality', 'Retail', 'Other'];
-const PAYMENT_TERMS = ['Due on Receipt', 'Net 15', 'Net 30', 'Net 60'];
-const CURRENCIES = ['GHS', 'USD', 'EUR', 'GBP', 'NGN'];
 const STATUS_CONFIG: Record<string, { color: string; icon: React.ElementType }> = {
   'Active':   { color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20', icon: BadgeCheck },
   'Prospect': { color: 'bg-blue-500/10 text-blue-600 border-blue-500/20',          icon: Star },
@@ -72,9 +48,20 @@ const STATUS_CONFIG: Record<string, { color: string; icon: React.ElementType }> 
 };
 const TAG_OPTIONS = ['VIP', 'High Value', 'Risky', 'New', 'Recurring', 'Priority'];
 
-// ─── Blank form state ─────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const blank = (): Partial<Client> => ({
+type SiteEntry = {
+  domainName:      string;
+  platform:        'WordPress' | 'Shopify' | 'Custom' | 'Other';
+  hostingProvider: string;
+  expiryDate:      string;
+  projectPrice:    string;
+  paymentStatus:   'Paid' | 'Unpaid';
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const blank      = (): Partial<Client> => ({
   name: '', businessName: '', businessType: '', industry: '',
   email: '', phone: '', preferredContact: 'email',
   country: 'Ghana', city: '', avatarUrl: '', notes: '',
@@ -83,7 +70,12 @@ const blank = (): Partial<Client> => ({
   paymentTerms: 'Due on Receipt', preferredPayment: 'Mobile Money',
 });
 
-// ─── Tag chip helper ──────────────────────────────────────────────────────────
+const blankSite  = (): SiteEntry => ({
+  domainName: '', platform: 'WordPress', hostingProvider: '',
+  expiryDate: '', projectPrice: '', paymentStatus: 'Unpaid',
+});
+
+// ─── Tag chips ────────────────────────────────────────────────────────────────
 
 function TagChips({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const selected = value ? value.split(',').map(t => t.trim()).filter(Boolean) : [];
@@ -96,17 +88,11 @@ function TagChips({ value, onChange }: { value: string; onChange: (v: string) =>
   return (
     <div className="flex flex-wrap gap-2 mt-1">
       {TAG_OPTIONS.map(tag => (
-        <button
-          key={tag}
-          type="button"
-          onClick={() => toggle(tag)}
-          className={cn(
-            'px-3 py-1 rounded-full text-xs font-semibold border transition-all',
+        <button key={tag} type="button" onClick={() => toggle(tag)}
+          className={cn('px-3 py-1 rounded-full text-xs font-semibold border transition-all',
             selected.includes(tag)
               ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-              : 'bg-muted text-muted-foreground border-border hover:border-primary/50'
-          )}
-        >
+              : 'bg-muted text-muted-foreground border-border hover:border-primary/50')}>
           {tag}
         </button>
       ))}
@@ -133,27 +119,27 @@ function SectionHead({ icon: Icon, title, subtitle }: { icon: React.ElementType;
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ClientsPage() {
-  const { data, addClient, updateClient, deleteClient } = useApp();
+  const { data, addClient, updateClient, deleteClient, addWebsite } = useApp();
   const { toast } = useToast();
 
   // Dialog / sheet state
-  const [isAddOpen, setIsAddOpen]         = useState(false);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [isEditing, setIsEditing]         = useState(false);
+  const [isAddOpen,        setIsAddOpen]        = useState(false);
+  const [selectedClient,   setSelectedClient]   = useState<Client | null>(null);
+  const [isEditing,        setIsEditing]        = useState(false);
 
   // Form state
-  const [step, setStep]       = useState<number>(1); // Expanded to 4 steps
-  const [form, setForm]       = useState<Partial<Client>>(blank());
-  const [editData, setEditData] = useState<Partial<Client>>({});
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [errors, setErrors]   = useState<Record<string, string>>({});
+  const [step,             setStep]             = useState<1 | 2 | 3>(1);
+  const [form,             setForm]             = useState<Partial<Client>>(blank());
+  const [editData,         setEditData]         = useState<Partial<Client>>({});
+  const [logoPreview,      setLogoPreview]      = useState<string | null>(null);
+  const [siteEntries,      setSiteEntries]      = useState<SiteEntry[]>([]);
 
   // Filters
-  const [searchTerm, setSearchTerm]   = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [searchTerm,       setSearchTerm]       = useState('');
+  const [statusFilter,     setStatusFilter]     = useState<string>('All');
 
-  const fileInputRef    = useRef<HTMLInputElement>(null);
-  const editFileRef     = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileRef  = useRef<HTMLInputElement>(null);
 
   // ── Computed ──────────────────────────────────────────────────────────────
 
@@ -201,38 +187,52 @@ export default function ClientsPage() {
 
   // ── Form helpers ──────────────────────────────────────────────────────────
 
-  const set = (key: keyof Client) => (val: string | boolean) =>
-    setForm(p => ({ ...p, [key]: val }));
+  const set  = (key: keyof Client) => (val: string | boolean) => setForm(p => ({ ...p, [key]: val }));
+  const setE = (key: keyof Client) => (val: string | boolean) => setEditData(p => ({ ...p, [key]: val }));
 
-  const setE = (key: keyof Client) => (val: string | boolean) =>
-    setEditData(p => ({ ...p, [key]: val }));
+  // ── Site entry helpers ────────────────────────────────────────────────────
 
-  // ── Submit ────────────────────────────────────────────────────────────────
-
-  const handleAddClient = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const validation = clientSchema.safeParse(form);
-    if (!validation.success) {
-      const newErrors: Record<string, string> = {};
-      validation.error.errors.forEach((err) => {
-        if (err.path[0]) newErrors[err.path[0].toString()] = err.message;
-      });
-      setErrors(newErrors);
-      toast({ variant: 'destructive', title: 'Validation Error', description: 'Please check required fields.' });
-      return;
-    }
-
-    const location = [form.city, form.country].filter(Boolean).join(', ');
-    addClient({
-      ...validation.data,
-      location,
-      avatarUrl: validation.data.avatarUrl || `https://picsum.photos/seed/${Math.random()}/600/400`,
+  const updateSite = (idx: number, field: keyof SiteEntry, val: string) => {
+    setSiteEntries(prev => {
+      const n = [...prev];
+      n[idx] = { ...n[idx], [field]: val };
+      return n;
     });
+  };
+
+  const removeSite = (idx: number) => setSiteEntries(prev => prev.filter((_, i) => i !== idx));
+
+  // ── Submit — creates client THEN websites ─────────────────────────────────
+
+  const handleAddClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const location = [form.city, form.country].filter(Boolean).join(', ');
+    const newClient = await addClient({
+      ...form,
+      location,
+      avatarUrl: form.avatarUrl || `https://picsum.photos/seed/${Math.random()}/600/400`,
+    });
+
+    if (newClient) {
+      for (const site of siteEntries) {
+        if (site.domainName.trim()) {
+          await addWebsite({
+            clientId:        newClient.id,
+            domainName:      site.domainName.trim(),
+            url:             `https://${site.domainName.trim().replace(/^https?:\/\//i, '')}`,
+            platform:        site.platform,
+            hostingProvider: site.hostingProvider || undefined,
+            expiryDate:      site.expiryDate || undefined,
+            projectPrice:    site.projectPrice ? parseFloat(site.projectPrice) : undefined,
+            paymentStatus:   site.paymentStatus,
+          });
+        }
+      }
+    }
 
     setIsAddOpen(false);
     setForm(blank());
-    setErrors({});
+    setSiteEntries([]);
     setLogoPreview(null);
     setStep(1);
   };
@@ -240,31 +240,18 @@ export default function ClientsPage() {
   const handleUpdateClient = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClient) return;
-
-    const validation = clientSchema.safeParse(editData);
-    if (!validation.success) {
-      const newErrors: Record<string, string> = {};
-      validation.error.errors.forEach((err) => {
-        if (err.path[0]) newErrors[err.path[0].toString()] = err.message;
-      });
-      setErrors(newErrors);
-      return;
-    }
-
-    const location = [validation.data.city, validation.data.country]
+    const location = [editData.city ?? selectedClient.city, editData.country ?? selectedClient.country]
       .filter(Boolean).join(', ');
-    updateClient(selectedClient.id, { ...validation.data, location });
-    setSelectedClient({ ...selectedClient, ...validation.data, location } as Client);
+    updateClient(selectedClient.id, { ...editData, location });
+    setSelectedClient({ ...selectedClient, ...editData, location } as Client);
     setIsEditing(false);
     setLogoPreview(null);
-    setErrors({});
   };
 
   const startEditing = () => {
     if (!selectedClient) return;
     setEditData({ ...selectedClient });
     setLogoPreview(selectedClient.avatarUrl ?? null);
-    setErrors({});
     setIsEditing(true);
   };
 
@@ -284,7 +271,7 @@ export default function ClientsPage() {
     <DashboardLayout>
       <div className="space-y-8">
 
-        {/* ── Header ───────────────────────────────────────────────────────── */}
+        {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-4xl font-extrabold tracking-tight text-foreground">Partners</h1>
@@ -293,30 +280,45 @@ export default function ClientsPage() {
             </p>
           </div>
 
-          <Dialog open={isAddOpen} onOpenChange={(o) => { setIsAddOpen(o); if (!o) { setForm(blank()); setLogoPreview(null); setStep(1); } }}>
+          <Dialog open={isAddOpen} onOpenChange={(o) => {
+            setIsAddOpen(o);
+            if (!o) { setForm(blank()); setLogoPreview(null); setStep(1); setSiteEntries([]); }
+          }}>
             <DialogTrigger asChild>
               <Button size="lg" className="gap-2 premium-button bg-primary text-primary-foreground shadow-lg shadow-primary/20">
                 <Plus size={20} /> New Client
               </Button>
             </DialogTrigger>
 
-            {/* ── Add Dialog ──────────────────────────────────────────────── */}
-            <DialogContent className="w-[95vw] sm:max-w-[680px] max-h-[92vh] overflow-hidden flex flex-col p-0">
+            {/* ── Add Dialog ──────────────────────────────────────────── */}
+            <DialogContent className="w-[95vw] sm:max-w-[700px] max-h-[92vh] overflow-hidden flex flex-col p-0">
               <DialogHeader className="px-6 pt-6 pb-4 border-b bg-muted/30">
                 <div className="flex items-center justify-between">
                   <div>
                     <DialogTitle className="text-xl font-bold">Initialize Partnership</DialogTitle>
                     <DialogDescription className="mt-1">
-                      Step {step} of 4 — {step === 1 ? 'Identity' : step === 2 ? 'Business' : step === 3 ? 'Sites' : 'Notes'}
+                      {step === 1 ? 'Step 1 of 3 — Client Identity'
+                       : step === 2 ? 'Step 2 of 3 — Business Setup'
+                       :              'Step 3 of 3 — Digital Properties'}
                     </DialogDescription>
                   </div>
-                  {/* Step indicator */}
+
+                  {/* 3-step indicator */}
                   <div className="flex items-center gap-2">
-                    {[1, 2, 3, 4].map((s) => (
-                      <div key={s} className={cn('w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-all',
-                        step === s ? 'bg-primary text-primary-foreground border-primary' : step > s ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-muted text-muted-foreground border-border')}>
-                        {step > s ? <Check size={10} /> : s}
-                      </div>
+                    {([1, 2, 3] as const).map((s, i) => (
+                      <React.Fragment key={s}>
+                        {i > 0 && <div className="w-5 h-0.5 bg-border" />}
+                        <div className={cn(
+                          'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all',
+                          step === s
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : step > s
+                              ? 'bg-emerald-500 text-white border-emerald-500'
+                              : 'bg-muted text-muted-foreground border-border'
+                        )}>
+                          {step > s ? <Check size={13} /> : s}
+                        </div>
+                      </React.Fragment>
                     ))}
                   </div>
                 </div>
@@ -325,26 +327,23 @@ export default function ClientsPage() {
               <form onSubmit={handleAddClient} className="flex flex-col flex-1 overflow-hidden">
                 <div className="flex-1 overflow-y-auto px-6 py-5">
 
-                  {/* ── STEP 1: Client Identity ──────────────────────────── */}
+                  {/* ── STEP 1: Client Identity ────────────────────────── */}
                   {step === 1 && (
                     <div className="space-y-6">
                       <SectionHead icon={Building2} title="Business Information" subtitle="Core identity of this client" />
 
                       {/* Logo upload */}
                       <div className="flex items-center gap-5">
-                        <div
-                          className="relative w-20 h-20 rounded-2xl border-2 border-dashed border-muted-foreground/20 flex items-center justify-center bg-muted/30 overflow-hidden cursor-pointer hover:border-primary transition-colors flex-shrink-0"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
+                        <div className="relative w-20 h-20 rounded-2xl border-2 border-dashed border-muted-foreground/20 flex items-center justify-center bg-muted/30 overflow-hidden cursor-pointer hover:border-primary transition-colors flex-shrink-0"
+                          onClick={() => fileInputRef.current?.click()}>
                           {logoPreview
                             ? <ClientImg src={logoPreview} alt="logo" className="absolute inset-0 w-full h-full" />
-                            : <div className="flex flex-col items-center gap-1 text-muted-foreground"><Upload size={18} /><span className="text-[9px] font-bold uppercase">Logo</span></div>
-                          }
+                            : <div className="flex flex-col items-center gap-1 text-muted-foreground"><Upload size={18} /><span className="text-[9px] font-bold uppercase">Logo</span></div>}
                         </div>
                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={e => handleFile(e, 'form')} />
                         <div className="flex-1 space-y-1">
                           <p className="text-sm font-semibold text-foreground">Company Logo</p>
-                          <p className="text-xs text-muted-foreground">Square PNG or JPG, max 1 MB. Used on client cards and reports.</p>
+                          <p className="text-xs text-muted-foreground">Square PNG or JPG, max 1 MB.</p>
                           {logoPreview && (
                             <button type="button" onClick={() => { setLogoPreview(null); setForm(p => ({ ...p, avatarUrl: '' })); }}
                               className="text-xs text-destructive hover:underline mt-1">Remove</button>
@@ -355,8 +354,7 @@ export default function ClientsPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <Label>Business Name <span className="text-destructive">*</span></Label>
-                          <Input value={form.businessName} onChange={e => set('businessName')(e.target.value)} placeholder="e.g. Kofi Brands Ltd" className={errors.businessName ? 'border-destructive' : ''} />
-                          {errors.businessName && <p className="text-[10px] font-medium text-destructive">{errors.businessName}</p>}
+                          <Input required value={form.businessName} onChange={e => set('businessName')(e.target.value)} placeholder="e.g. Kofi Brands Ltd" />
                         </div>
                         <div className="space-y-1.5">
                           <Label>Business Type</Label>
@@ -376,9 +374,7 @@ export default function ClientsPage() {
                           <Label>Client Status</Label>
                           <Select value={form.status} onValueChange={set('status')}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {Object.keys(STATUS_CONFIG).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                            </SelectContent>
+                            <SelectContent>{Object.keys(STATUS_CONFIG).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                           </Select>
                         </div>
                       </div>
@@ -389,18 +385,15 @@ export default function ClientsPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5 sm:col-span-2">
                           <Label>Full Name <span className="text-destructive">*</span></Label>
-                          <Input value={form.name} onChange={e => set('name')(e.target.value)} placeholder="e.g. Kofi Mensah" className={errors.name ? 'border-destructive' : ''} />
-                          {errors.name && <p className="text-[10px] font-medium text-destructive">{errors.name}</p>}
+                          <Input required value={form.name} onChange={e => set('name')(e.target.value)} placeholder="e.g. Kofi Mensah" />
                         </div>
                         <div className="space-y-1.5">
                           <Label>Email</Label>
-                          <Input type="email" value={form.email} onChange={e => set('email')(e.target.value)} placeholder="kofi@company.com" className={errors.email ? 'border-destructive' : ''} />
-                          {errors.email && <p className="text-[10px] font-medium text-destructive">{errors.email}</p>}
+                          <Input type="email" value={form.email} onChange={e => set('email')(e.target.value)} placeholder="kofi@company.com" />
                         </div>
                         <div className="space-y-1.5">
                           <Label>Phone</Label>
-                          <Input value={form.phone} onChange={e => set('phone')(e.target.value)} placeholder="+233 24 000 0000" className={errors.phone ? 'border-destructive' : ''} />
-                          {errors.phone && <p className="text-[10px] font-medium text-destructive">{errors.phone}</p>}
+                          <Input value={form.phone} onChange={e => set('phone')(e.target.value)} placeholder="+233 24 000 0000" />
                         </div>
                         <div className="space-y-1.5">
                           <Label>Preferred Contact</Label>
@@ -431,7 +424,7 @@ export default function ClientsPage() {
                     </div>
                   )}
 
-                  {/* ── STEP 2: Business Setup ───────────────────────────── */}
+                  {/* ── STEP 2: Business Setup ─────────────────────────── */}
                   {step === 2 && (
                     <div className="space-y-6">
                       <SectionHead icon={DollarSign} title="Financial Configuration" subtitle="How billing works with this client" />
@@ -489,52 +482,128 @@ export default function ClientsPage() {
 
                       <Separator />
                       <SectionHead icon={Building2} title="Client Vision & Notes" subtitle="Internal context about this partnership" />
-                      <Textarea
-                        rows={4}
-                        value={form.notes}
-                        onChange={e => set('notes')(e.target.value)}
-                        placeholder="What are this client's goals? What makes this partnership unique? Any important context..."
-                        className="resize-none"
-                      />
+                      <Textarea rows={4} value={form.notes} onChange={e => set('notes')(e.target.value)}
+                        placeholder="What are this client's goals? Any important context..." className="resize-none" />
+                    </div>
+                  )}
+
+                  {/* ── STEP 3: Digital Properties ─────────────────────── */}
+                  {step === 3 && (
+                    <div className="space-y-6">
+                      <SectionHead icon={Globe} title="Digital Properties" subtitle="Add websites and domains for this client" />
+
+                      {siteEntries.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-2xl text-muted-foreground gap-3 bg-muted/10">
+                          <Globe size={34} className="opacity-20" />
+                          <p className="text-sm font-semibold">No sites added yet</p>
+                          <p className="text-xs text-center max-w-xs">Click below to add websites, domains, or projects linked to this client.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {siteEntries.map((site, idx) => (
+                            <div key={idx} className="p-4 rounded-2xl border bg-muted/20 space-y-3 relative group">
+                              {/* Remove button */}
+                              <button type="button" onClick={() => removeSite(idx)}
+                                className="absolute top-3 right-3 p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100">
+                                <XIcon size={14} />
+                              </button>
+
+                              <div className="flex items-center gap-2 mb-1">
+                                <Globe size={14} className="text-primary" />
+                                <span className="text-xs font-bold text-primary uppercase tracking-wider">Site {idx + 1}</span>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-1.5 sm:col-span-2">
+                                  <Label>Domain Name <span className="text-destructive">*</span></Label>
+                                  <Input placeholder="e.g. clientsite.com"
+                                    value={site.domainName}
+                                    onChange={e => updateSite(idx, 'domainName', e.target.value)} />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label>Platform</Label>
+                                  <Select value={site.platform} onValueChange={v => updateSite(idx, 'platform', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      {PLATFORMS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label>Hosting Provider</Label>
+                                  <Input placeholder="e.g. Namecheap, GoDaddy"
+                                    value={site.hostingProvider}
+                                    onChange={e => updateSite(idx, 'hostingProvider', e.target.value)} />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label>Expiry / Renewal Date</Label>
+                                  <Input type="date" value={site.expiryDate}
+                                    onChange={e => updateSite(idx, 'expiryDate', e.target.value)} />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label>Project Price (GHS)</Label>
+                                  <Input type="number" placeholder="0.00" value={site.projectPrice}
+                                    onChange={e => updateSite(idx, 'projectPrice', e.target.value)} />
+                                </div>
+                                <div className="space-y-1.5 sm:col-span-2">
+                                  <Label>Payment Status</Label>
+                                  <Select value={site.paymentStatus} onValueChange={v => updateSite(idx, 'paymentStatus', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Unpaid">Unpaid</SelectItem>
+                                      <SelectItem value="Paid">Paid</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <button type="button" onClick={() => setSiteEntries(prev => [...prev, blankSite()])}
+                        className="w-full py-3 rounded-2xl border-2 border-dashed border-primary/30 text-primary/70 text-xs font-black uppercase tracking-widest hover:border-primary hover:text-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2">
+                        <Plus size={16} /> Add Digital Property
+                      </button>
+
+                      <div className="p-3 rounded-xl bg-muted/30 border text-xs text-muted-foreground flex items-start gap-2">
+                        <Globe size={14} className="text-primary mt-0.5 flex-shrink-0" />
+                        Sites are saved immediately after the client is created and will appear in their profile and the renewals tracker.
+                      </div>
+
+                      {siteEntries.length === 0 && (
+                        <p className="text-center text-xs text-muted-foreground italic py-1">
+                          You can also skip this step — sites can be added later from the client profile.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {/* ── Footer buttons ──────────────────────────────────────── */}
+                {/* ── Footer ────────────────────────────────────────────── */}
                 <div className="px-6 py-4 border-t bg-muted/20 flex items-center justify-between gap-3">
                   {step === 1 ? (
-                    <Button type="button" variant="outline" onClick={() => { setIsAddOpen(false); }}>
-                      Cancel
-                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
                   ) : (
-                    <Button type="button" variant="outline" onClick={() => setStep(1)} className="gap-2">
+                    <Button type="button" variant="outline" onClick={() => setStep(s => (s - 1) as 1 | 2 | 3)} className="gap-2">
                       <ChevronLeft size={16} /> Back
                     </Button>
                   )}
-                  {step === 1 ? (
-                    <Button
-                      type="button"
+
+                  {step < 3 ? (
+                    <Button type="button"
                       className="gap-2 bg-primary text-primary-foreground"
-                      onClick={() => {
-                        // Validate only Step 1 fields before proceeding
-                        const step1Result = clientSchema.pick({ name: true, businessName: true, email: true }).safeParse(form);
-                        if (!step1Result.success) {
-                          const newErrors: Record<string, string> = {};
-                          step1Result.error.errors.forEach((err) => {
-                            if (err.path[0]) newErrors[err.path[0].toString()] = err.message;
-                          });
-                          setErrors(newErrors);
-                          return;
-                        }
-                        setErrors({});
-                        setStep(2);
-                      }}
-                    >
-                      Next: Business Setup <ChevronRight size={16} />
+                      disabled={step === 1 && (!form.name || !form.businessName)}
+                      onClick={() => setStep(s => (s + 1) as 1 | 2 | 3)}>
+                      {step === 1 ? 'Next: Business Setup' : 'Next: Digital Properties'}
+                      <ChevronRight size={16} />
                     </Button>
                   ) : (
                     <Button type="submit" className="gap-2 bg-primary text-primary-foreground">
-                      <Check size={16} /> Initialize Partnership
+                      <Check size={16} />
+                      Initialize Partnership
+                      {siteEntries.filter(s => s.domainName).length > 0 &&
+                        <span className="text-xs opacity-80">+ {siteEntries.filter(s => s.domainName).length} site{siteEntries.filter(s => s.domainName).length > 1 ? 's' : ''}</span>}
                     </Button>
                   )}
                 </div>
@@ -543,57 +612,45 @@ export default function ClientsPage() {
           </Dialog>
         </div>
 
-        {/* ── Search + Filter bar ───────────────────────────────────────────── */}
+        {/* ── Search + Filter ───────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1 max-w-xl group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={18} />
-            <Input
-              placeholder="Search by name, business, industry or location..."
+            <Input placeholder="Search by name, business, industry or location..."
               className="pl-10 h-11 bg-background/50 border-muted"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
+              value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Filter size={16} className="text-muted-foreground" />
             {(['All', 'Active', 'Prospect', 'On Hold', 'Inactive'] as const).map(s => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all',
+              <button key={s} onClick={() => setStatusFilter(s)}
+                className={cn('px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all',
                   statusFilter === s
                     ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                    : 'bg-muted text-muted-foreground border-border hover:border-primary/40'
-                )}
-              >
+                    : 'bg-muted text-muted-foreground border-border hover:border-primary/40')}>
                 {s}
               </button>
             ))}
           </div>
         </div>
 
-        {/* ── Client Grid ──────────────────────────────────────────────────── */}
+        {/* ── Client Grid ───────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredClients.map((client) => {
-            const stats   = getClientStats(client.id);
-            const status  = client.status ?? 'Active';
+            const stats      = getClientStats(client.id);
+            const status     = client.status ?? 'Active';
             const StatusIcon = STATUS_CONFIG[status]?.icon ?? BadgeCheck;
-            const tags    = client.tags ? client.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+            const tags       = client.tags ? client.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
 
             return (
-              <Card
-                key={client.id}
+              <Card key={client.id}
                 className="group relative overflow-hidden premium-card cursor-pointer hover:translate-y-[-3px] transition-all duration-300"
-                onClick={() => setSelectedClient(client)}
-              >
-                {/* Hero image */}
+                onClick={() => setSelectedClient(client)}>
                 <div className="relative h-44 w-full overflow-hidden">
                   <ClientImg
                     src={client.avatarUrl || `https://picsum.photos/seed/${client.id}/600/400`}
                     alt={client.businessName}
-                    className="absolute inset-0 w-full h-full transition-transform duration-500 group-hover:scale-110"
-                  />
+                    className="absolute inset-0 w-full h-full transition-transform duration-500 group-hover:scale-110" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   <div className="absolute bottom-3 left-4 right-4">
                     <h3 className="font-bold text-lg text-white drop-shadow-md leading-tight">{client.businessName}</h3>
@@ -603,11 +660,9 @@ export default function ClientsPage() {
                       {client.industry && <span className="text-white/50">· {client.industry}</span>}
                     </div>
                   </div>
-                  {/* Status badge */}
                   <div className="absolute top-3 right-3">
                     <span className={cn('flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold border backdrop-blur-sm', STATUS_CONFIG[status]?.color)}>
-                      <StatusIcon size={10} />
-                      {status}
+                      <StatusIcon size={10} />{status}
                     </span>
                   </div>
                   {stats.unpaid > 0 && (
@@ -620,7 +675,6 @@ export default function ClientsPage() {
                 </div>
 
                 <CardContent className="p-4">
-                  {/* Contact row */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary">
@@ -634,18 +688,14 @@ export default function ClientsPage() {
                     <ArrowRight size={16} className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                   </div>
 
-                  {/* Tags */}
                   {tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-3">
                       {tags.slice(0, 3).map(tag => (
-                        <span key={tag} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">
-                          {tag}
-                        </span>
+                        <span key={tag} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">{tag}</span>
                       ))}
                     </div>
                   )}
 
-                  {/* Stats row */}
                   <div className="grid grid-cols-3 gap-3 pt-3 border-t">
                     <div className="text-center">
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Sites</p>
@@ -675,20 +725,18 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* ── Client Detail Sheet ──────────────────────────────────────────────── */}
+      {/* ── Client Detail Sheet ──────────────────────────────────────────── */}
       <Sheet open={!!selectedClient} onOpenChange={(o) => {
         if (!o) { setSelectedClient(null); setIsEditing(false); setLogoPreview(null); }
       }}>
         <SheetContent className="w-full sm:max-w-[620px] overflow-y-auto p-0">
           {selectedClient && (
             <>
-              {/* Hero */}
               <div className="relative h-56 w-full overflow-hidden">
                 <ClientImg
                   src={selectedClient.avatarUrl || `https://picsum.photos/seed/${selectedClient.id}/600/400`}
                   alt={selectedClient.businessName}
-                  className="absolute inset-0 w-full h-full"
-                />
+                  className="absolute inset-0 w-full h-full" />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-black/30 to-transparent" />
                 {!isEditing && (
                   <div className="absolute bottom-4 left-6">
@@ -701,7 +749,6 @@ export default function ClientsPage() {
                     )}
                   </div>
                 )}
-                {/* Action buttons top-right */}
                 <div className="absolute top-4 right-4 flex gap-2">
                   {!isEditing ? (
                     <>
@@ -713,7 +760,8 @@ export default function ClientsPage() {
                       </Button>
                     </>
                   ) : (
-                    <Button variant="secondary" size="icon" className="rounded-full backdrop-blur-sm bg-white/20 border-white/20 text-white" onClick={() => { setIsEditing(false); setLogoPreview(null); }}>
+                    <Button variant="secondary" size="icon" className="rounded-full backdrop-blur-sm bg-white/20 border-white/20 text-white"
+                      onClick={() => { setIsEditing(false); setLogoPreview(null); }}>
                       <XIcon size={16} />
                     </Button>
                   )}
@@ -726,24 +774,15 @@ export default function ClientsPage() {
                   <SheetDescription>Client details and management</SheetDescription>
                 </SheetHeader>
 
-                {/* ── EDIT FORM ─────────────────────────────────────────── */}
                 {isEditing ? (
                   <form onSubmit={handleUpdateClient} className="space-y-6">
-                    {/* Logo */}
                     <div className="flex items-center gap-4">
-                      <div
-                        className="relative w-16 h-16 rounded-2xl border-2 border-dashed border-muted-foreground/20 flex items-center justify-center bg-muted/30 overflow-hidden cursor-pointer hover:border-primary transition-colors"
-                        onClick={() => editFileRef.current?.click()}
-                      >
-                        {logoPreview
-                          ? <ClientImg src={logoPreview} alt="logo" className="absolute inset-0 w-full h-full" />
-                          : <Upload size={16} className="text-muted-foreground" />}
+                      <div className="relative w-16 h-16 rounded-2xl border-2 border-dashed border-muted-foreground/20 flex items-center justify-center bg-muted/30 overflow-hidden cursor-pointer hover:border-primary transition-colors"
+                        onClick={() => editFileRef.current?.click()}>
+                        {logoPreview ? <ClientImg src={logoPreview} alt="logo" className="absolute inset-0 w-full h-full" /> : <Upload size={16} className="text-muted-foreground" />}
                       </div>
                       <input type="file" ref={editFileRef} className="hidden" accept="image/*" onChange={e => handleFile(e, 'edit')} />
-                      <div>
-                        <p className="text-sm font-semibold">Update Logo</p>
-                        <p className="text-xs text-muted-foreground">Square image, max 1 MB</p>
-                      </div>
+                      <div><p className="text-sm font-semibold">Update Logo</p><p className="text-xs text-muted-foreground">Square image, max 1 MB</p></div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -808,10 +847,7 @@ export default function ClientsPage() {
                     </div>
 
                     <div className="flex items-center justify-between p-3 rounded-xl border bg-muted/30">
-                      <div>
-                        <p className="text-sm font-semibold">Ghana VAT (15%)</p>
-                        <p className="text-xs text-muted-foreground">Applied to all invoices</p>
-                      </div>
+                      <div><p className="text-sm font-semibold">Ghana VAT (15%)</p><p className="text-xs text-muted-foreground">Applied to all invoices</p></div>
                       <Switch checked={!!editData.vatEnabled} onCheckedChange={setE('vatEnabled')} />
                     </div>
 
@@ -830,19 +866,16 @@ export default function ClientsPage() {
                       <Button type="button" variant="outline" className="flex-1" onClick={() => setIsEditing(false)}>Cancel</Button>
                     </div>
                   </form>
-
                 ) : (
-                  /* ── VIEW MODE ──────────────────────────────────────────── */
                   <>
-                    {/* Contact */}
                     <div>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Contact</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {[
-                          { icon: User,  label: selectedClient.name, sub: 'Lead Contact' },
-                          { icon: MapPin,label: [selectedClient.city, selectedClient.country].filter(Boolean).join(', ') || selectedClient.location, sub: 'Location' },
-                          { icon: Mail,  label: selectedClient.email, sub: 'Email', href: `mailto:${selectedClient.email}` },
-                          { icon: Phone, label: selectedClient.phone, sub: 'Phone', href: `tel:${selectedClient.phone}` },
+                          { icon: User,   label: selectedClient.name,  sub: 'Lead Contact' },
+                          { icon: MapPin, label: [selectedClient.city, selectedClient.country].filter(Boolean).join(', ') || selectedClient.location, sub: 'Location' },
+                          { icon: Mail,   label: selectedClient.email,  sub: 'Email',  href: `mailto:${selectedClient.email}` },
+                          { icon: Phone,  label: selectedClient.phone,  sub: 'Phone',  href: `tel:${selectedClient.phone}` },
                         ].filter(i => i.label).map(({ icon: Icon, label, sub, href }) => (
                           <div key={sub} className={cn('flex items-center gap-3 p-3 rounded-xl border bg-card transition-all', href && 'hover:border-primary cursor-pointer group')}
                             onClick={href ? () => window.open(href) : undefined}>
@@ -859,16 +892,15 @@ export default function ClientsPage() {
 
                     <Separator />
 
-                    {/* Financial */}
                     <div>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Financial</p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {[
-                          { icon: Banknote,   label: selectedClient.currency ?? 'GHS',                        sub: 'Currency' },
-                          { icon: Receipt,    label: selectedClient.paymentTerms ?? 'Due on Receipt',          sub: 'Payment Terms' },
-                          { icon: Smartphone, label: selectedClient.preferredPayment ?? '—',                   sub: 'Preferred Method' },
+                          { icon: Banknote,   label: selectedClient.currency ?? 'GHS',                          sub: 'Currency' },
+                          { icon: Receipt,    label: selectedClient.paymentTerms ?? 'Due on Receipt',            sub: 'Payment Terms' },
+                          { icon: Smartphone, label: selectedClient.preferredPayment ?? '—',                     sub: 'Preferred Method' },
                           { icon: CreditCard, label: selectedClient.vatEnabled ? 'VAT Enabled (15%)' : 'No VAT', sub: 'Tax' },
-                          { icon: Users,      label: selectedClient.accountManager ?? 'Unassigned',            sub: 'Account Manager' },
+                          { icon: Users,      label: selectedClient.accountManager ?? 'Unassigned',              sub: 'Account Manager' },
                         ].map(({ icon: Icon, label, sub }) => (
                           <div key={sub} className="flex items-center gap-2.5 p-3 rounded-xl border bg-card">
                             <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground flex-shrink-0"><Icon size={15} /></div>
@@ -881,7 +913,6 @@ export default function ClientsPage() {
                       </div>
                     </div>
 
-                    {/* Tags */}
                     {selectedClient.tags && (
                       <>
                         <Separator />
@@ -896,7 +927,6 @@ export default function ClientsPage() {
                       </>
                     )}
 
-                    {/* Websites */}
                     <Separator />
                     <div>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">
@@ -923,20 +953,18 @@ export default function ClientsPage() {
                       </div>
                     </div>
 
-                    {/* Notes */}
                     {selectedClient.notes && (
                       <>
                         <Separator />
                         <div>
                           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Vision & Notes</p>
                           <p className="text-sm text-foreground/80 leading-relaxed italic bg-accent/20 p-4 rounded-xl border border-primary/10">
-                            "{selectedClient.notes}"
+                            &ldquo;{selectedClient.notes}&rdquo;
                           </p>
                         </div>
                       </>
                     )}
 
-                    {/* Footer */}
                     <div className="pt-3 border-t flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                       <span>Client Since {new Date(selectedClient.createdAt).toLocaleDateString()}</span>
                       <span className="truncate max-w-[160px]">ID: {selectedClient.id}</span>

@@ -1,31 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { useApp } from '@/lib/store';
-import { 
-  Bell, 
-  Globe, 
-  CreditCard, 
-  Settings,
-  CalendarDays,
-  Check,
-  ShieldCheck,
-  Server,
-  Plus,
-  Trash2
+import { differenceInCalendarDays, parseISO } from 'date-fns';
+import {
+  Bell, Globe, CreditCard, Settings, CalendarDays,
+  ShieldCheck, Server, Plus, Trash2
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -33,49 +21,154 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Urgency = 'overdue' | 'urgent' | 'soon' | 'ok';
+
+interface TickerItem {
+  label:     string;
+  dateLabel: string;
+  urgency:   Urgency;
+  typeIcon:  string;
+}
+
+// ─── Announcement Bar ─────────────────────────────────────────────────────────
+
+function AnnouncementBar({ items }: { items: TickerItem[] }) {
+  if (items.length === 0) {
+    return (
+      <div className="rounded-2xl bg-muted/30 border border-border h-11 flex items-center justify-center">
+        <span className="text-xs text-muted-foreground italic flex items-center gap-2">
+          <ShieldCheck size={14} className="text-emerald-500" />
+          All clear — no upcoming alerts scheduled.
+        </span>
+      </div>
+    );
+  }
+
+  // triple for seamless infinite scroll
+  const trippled = [...items, ...items, ...items];
+
+  const urgencyStyle: Record<Urgency, string> = {
+    overdue: 'bg-red-500/15 text-red-500 border-red-400/30',
+    urgent:  'bg-orange-500/15 text-orange-500 border-orange-400/30',
+    soon:    'bg-amber-500/15 text-amber-600 border-amber-400/30',
+    ok:      'bg-emerald-500/15 text-emerald-600 border-emerald-400/30',
+  };
+  const urgencyLabel: Record<Urgency, string> = {
+    overdue: '⚡ OVERDUE',
+    urgent:  '🔥 URGENT',
+    soon:    '📅 SOON',
+    ok:      '✓ ACTIVE',
+  };
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/8 via-accent/40 to-primary/8 border border-primary/15 h-12">
+      {/* Left pinned label + fade */}
+      <div className="absolute left-0 top-0 bottom-0 z-20 flex items-center gap-2.5 pl-4 pr-8 bg-gradient-to-r from-background via-background/95 to-transparent pointer-events-none">
+        <span className="w-2 h-2 bg-primary rounded-full animate-pulse flex-shrink-0" />
+        <span className="text-[10px] font-black text-primary uppercase tracking-[0.18em] whitespace-nowrap">
+          🔔 Alerts
+        </span>
+      </div>
+
+      {/* Right fade */}
+      <div className="absolute right-0 top-0 bottom-0 z-20 w-12 bg-gradient-to-l from-background/90 to-transparent pointer-events-none" />
+
+      {/* Scrolling track */}
+      <div className="reminders-ticker flex items-center h-full whitespace-nowrap" style={{ paddingLeft: '130px' }}>
+        {trippled.map((item, i) => (
+          <span key={i} className="inline-flex items-center gap-2.5 mr-10">
+            <span className={cn('text-[9px] font-black px-2.5 py-0.5 rounded-full border tracking-wide', urgencyStyle[item.urgency])}>
+              {urgencyLabel[item.urgency]}
+            </span>
+            <span className="text-xs font-semibold text-foreground">{item.typeIcon} {item.label}</span>
+            <span className="text-[10px] font-medium text-muted-foreground">{item.dateLabel}</span>
+            <span className="text-primary/25 font-bold text-sm mx-1">✦</span>
+          </span>
+        ))}
+      </div>
+
+      <style>{`
+        @keyframes reminders-scroll {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-33.333%); }
+        }
+        .reminders-ticker {
+          animation: reminders-scroll 55s linear infinite;
+          display: flex;
+          width: max-content;
+        }
+        .reminders-ticker:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export default function RemindersPage() {
   const { data, addReminder, deleteReminder } = useApp();
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [mounted,   setMounted]   = useState(false);
   const [newReminder, setNewReminder] = useState({
-    type: 'Web Management' as any,
-    title: '',
-    date: new Date().toISOString().split('T')[0],
-    details: ''
+    type:    'Web Management' as 'Web Management' | 'Domain' | 'Hosting' | 'Payment',
+    title:   '',
+    date:    new Date().toISOString().split('T')[0],
+    details: '',
   });
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
-  const allReminders = [...data.reminders].sort((a, b) => 
-    new Date(a.date).getTime() - new Date(b.date).getTime()
+  const allReminders = useMemo(() =>
+    [...data.reminders].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [data.reminders]
   );
+
+  // Build ticker items from reminders
+  const tickerItems = useMemo((): TickerItem[] => {
+    return allReminders.map(r => {
+      let daysLeft = 999;
+      try { daysLeft = differenceInCalendarDays(parseISO(r.date), new Date()); } catch {}
+      const urgency: Urgency =
+        daysLeft < 0  ? 'overdue' :
+        daysLeft <= 7 ? 'urgent'  :
+        daysLeft <= 30? 'soon'    : 'ok';
+      const typeIcon = r.type === 'Domain' ? '🌐' : r.type === 'Hosting' ? '🖥️' : r.type === 'Payment' ? '💳' : '⚙️';
+      const dateLabel = daysLeft < 0
+        ? `${Math.abs(daysLeft)}d overdue`
+        : daysLeft === 0 ? 'Due today'
+        : `${daysLeft}d away · ${r.date}`;
+      return { label: r.title, dateLabel, urgency, typeIcon };
+    });
+  }, [allReminders]);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'Domain': return <Globe size={18} />;
-      case 'Hosting': return <Server size={18} />;
+      case 'Domain':         return <Globe  size={18} />;
+      case 'Hosting':        return <Server size={18} />;
       case 'Web Management': return <Settings size={18} />;
-      case 'Payment': return <CreditCard size={18} />;
-      default: return <Bell size={18} />;
+      case 'Payment':        return <CreditCard size={18} />;
+      default:               return <Bell  size={18} />;
     }
   };
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'Domain': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
-      case 'Hosting': return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
+      case 'Domain':         return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+      case 'Hosting':        return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
       case 'Web Management': return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
-      case 'Payment': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
-      default: return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
+      case 'Payment':        return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+      default:               return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
     }
   };
 
-  const generateGoogleCalendarUrl = (reminder: any) => {
-    const title = encodeURIComponent(`[TGNE] ${reminder.title}`);
+  const generateGoogleCalendarUrl = (reminder: typeof allReminders[0]) => {
+    const title   = encodeURIComponent(`[TGNE] ${reminder.title}`);
     const dateStr = reminder.date.replace(/-/g, '');
-    const details = encodeURIComponent(reminder.details || `Automated management reminder via TGNE dashboard.`);
+    const details = encodeURIComponent(reminder.details || 'Automated reminder via TGNE dashboard.');
     return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dateStr}/${dateStr}&details=${details}&sf=true&output=xml`;
   };
 
@@ -83,34 +176,25 @@ export default function RemindersPage() {
     e.preventDefault();
     addReminder(newReminder);
     setIsAddOpen(false);
-    setNewReminder({
-      type: 'Web Management',
-      title: '',
-      date: new Date().toISOString().split('T')[0],
-      details: ''
-    });
+    setNewReminder({ type: 'Web Management', title: '', date: new Date().toISOString().split('T')[0], details: '' });
   };
 
   const groups = {
-    all: allReminders,
-    web: allReminders.filter(r => r.type === 'Web Management'),
-    domain: allReminders.filter(r => r.type === 'Domain'),
+    all:     allReminders,
+    web:     allReminders.filter(r => r.type === 'Web Management'),
+    domain:  allReminders.filter(r => r.type === 'Domain'),
     hosting: allReminders.filter(r => r.type === 'Hosting'),
   };
 
   const ReminderList = ({ reminders }: { reminders: typeof allReminders }) => (
     <div className="space-y-4">
       {reminders.map((reminder) => {
-        // Calculation is safe because we only render this list when mounted
         const isUrgent = mounted && new Date(reminder.date) < new Date();
         return (
-          <Card key={reminder.id} className={cn(
-            "group overflow-hidden premium-card border-l-4",
-            isUrgent ? "border-l-destructive" : "border-l-primary"
-          )}>
+          <Card key={reminder.id} className={cn('group overflow-hidden premium-card border-l-4', isUrgent ? 'border-l-destructive' : 'border-l-primary')}>
             <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className={cn("p-3 rounded-2xl border", getTypeColor(reminder.type))}>
+                <div className={cn('p-3 rounded-2xl border', getTypeColor(reminder.type))}>
                   {getTypeIcon(reminder.type)}
                 </div>
                 <div>
@@ -128,24 +212,15 @@ export default function RemindersPage() {
                   </div>
                 </div>
               </div>
-
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <Button 
-                  className="flex-1 sm:flex-none gap-2 premium-button" 
-                  size="sm"
-                  asChild
-                >
+                <Button className="flex-1 sm:flex-none gap-2 premium-button" size="sm" asChild>
                   <a href={generateGoogleCalendarUrl(reminder)} target="_blank" rel="noopener noreferrer">
-                    <CalendarDays size={14} />
-                    Export
+                    <CalendarDays size={14} /> Export
                   </a>
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button variant="ghost" size="sm"
                   className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10"
-                  onClick={() => deleteReminder(reminder.id)}
-                >
+                  onClick={() => deleteReminder(reminder.id)}>
                   <Trash2 size={16} />
                 </Button>
               </div>
@@ -164,32 +239,28 @@ export default function RemindersPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 max-w-5xl">
+      <div className="space-y-6 max-w-5xl">
+
+        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="text-4xl font-extrabold tracking-tight">TGNE Alert Center</h1>
             <p className="text-muted-foreground mt-2 text-lg">Centralized tracking for renewals and digital management.</p>
           </div>
-          
           <div className="flex items-center gap-3">
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2 shadow-lg premium-button bg-primary text-primary-foreground">
-                  <Plus size={18} />
-                  New Reminder
+                  <Plus size={18} /> New Reminder
                 </Button>
               </DialogTrigger>
               <DialogContent className="w-[95vw] sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Schedule Alert</DialogTitle>
-                </DialogHeader>
+                <DialogHeader><DialogTitle>Schedule Alert</DialogTitle></DialogHeader>
                 <form onSubmit={handleAddReminder} className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label>Category</Label>
-                    <Select onValueChange={v => setNewReminder({...newReminder, type: v as any})} defaultValue="Web Management">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
+                    <Select onValueChange={v => setNewReminder({...newReminder, type: v as typeof newReminder.type})} defaultValue="Web Management">
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Web Management">Web Management</SelectItem>
                         <SelectItem value="Domain">Domain Renewal</SelectItem>
@@ -210,7 +281,7 @@ export default function RemindersPage() {
                     <Label htmlFor="details">Description / Notes</Label>
                     <Textarea id="details" placeholder="Additional context for the reminder..." value={newReminder.details} onChange={e => setNewReminder({...newReminder, details: e.target.value})} />
                   </div>
-                  <div className="pt-2 border-t mt-4 flex flex-col gap-2">
+                  <div className="pt-2 border-t mt-4">
                     <Button type="submit" className="w-full">Create Local Alert</Button>
                   </div>
                 </form>
@@ -219,26 +290,22 @@ export default function RemindersPage() {
           </div>
         </div>
 
+        {/* ── Announcement Ticker ──────────────────────────────────────── */}
+        {mounted && <AnnouncementBar items={tickerItems} />}
+
+        {/* Tabs */}
         <Tabs defaultValue="all" className="w-full">
           <TabsList className="bg-muted/50 p-1 mb-8 h-12 gap-1 rounded-2xl border">
-            <TabsTrigger value="all" className="rounded-xl px-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">All Alerts</TabsTrigger>
-            <TabsTrigger value="web" className="rounded-xl px-6 data-[state=active]:bg-amber-500 data-[state=active]:text-white">Web Management</TabsTrigger>
-            <TabsTrigger value="domain" className="rounded-xl px-6 data-[state=active]:bg-blue-500 data-[state=active]:text-white">Domain Renewals</TabsTrigger>
+            <TabsTrigger value="all"     className="rounded-xl px-6 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">All Alerts</TabsTrigger>
+            <TabsTrigger value="web"     className="rounded-xl px-6 data-[state=active]:bg-amber-500 data-[state=active]:text-white">Web Management</TabsTrigger>
+            <TabsTrigger value="domain"  className="rounded-xl px-6 data-[state=active]:bg-blue-500 data-[state=active]:text-white">Domain Renewals</TabsTrigger>
             <TabsTrigger value="hosting" className="rounded-xl px-6 data-[state=active]:bg-purple-500 data-[state=active]:text-white">Hosting Renewals</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all">
-            {mounted && <ReminderList reminders={groups.all} />}
-          </TabsContent>
-          <TabsContent value="web">
-            {mounted && <ReminderList reminders={groups.web} />}
-          </TabsContent>
-          <TabsContent value="domain">
-            {mounted && <ReminderList reminders={groups.domain} />}
-          </TabsContent>
-          <TabsContent value="hosting">
-            {mounted && <ReminderList reminders={groups.hosting} />}
-          </TabsContent>
+          <TabsContent value="all">     {mounted && <ReminderList reminders={groups.all} />}</TabsContent>
+          <TabsContent value="web">     {mounted && <ReminderList reminders={groups.web} />}</TabsContent>
+          <TabsContent value="domain">  {mounted && <ReminderList reminders={groups.domain} />}</TabsContent>
+          <TabsContent value="hosting"> {mounted && <ReminderList reminders={groups.hosting} />}</TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>

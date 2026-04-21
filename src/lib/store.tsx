@@ -21,7 +21,7 @@ interface AppContextType {
   isAuthorized: boolean;
   verifyPin:       (pin: string) => boolean;
   logout:          () => void;
-  addClient:       (client: Partial<Client>) => Promise<void>;
+  addClient:       (client: Partial<Client>) => Promise<Client | null>;
   updateClient:    (id: string, client: Partial<Client>) => Promise<void>;
   deleteClient:    (id: string) => Promise<void>;
   addWebsite:      (website: Partial<Website>) => Promise<void>;
@@ -159,14 +159,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // ── Clients ───────────────────────────────────────────────────────────────
-  const addClient = async (client: Partial<Client>) => {
+  const addClient = async (client: Partial<Client>): Promise<Client | null> => {
     setIsSaving(true);
     try {
       const r = await api.post('/api/clients', client);
       if (!r.ok) throw new Error(await readErrorText(r));
+      const newClient: Client = await r.json();
       await invalidate();
       toast({ title: 'Success', description: 'Client added successfully!' });
-    } catch (e) { handleError('addClient', e); }
+      return newClient;
+    } catch (e) { handleError('addClient', e); return null; }
     finally     { setIsSaving(false); }
   };
 

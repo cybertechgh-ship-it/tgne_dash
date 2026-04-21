@@ -147,10 +147,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <div className="pt-2 space-y-1">
               <button 
                 onClick={logout}
-                className="w-full flex items-center gap-3 px-3 py-2 text-xs text-destructive/70 hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-black bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-xl shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-[1.02] active:scale-95 transition-all duration-200"
               >
                 <LogOut size={14} />
-                <span>Lock Dashboard</span>
+                <span>Logout</span>
               </button>
             </div>
           </div>
