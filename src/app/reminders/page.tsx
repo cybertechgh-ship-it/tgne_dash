@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -128,6 +129,7 @@ export default function RemindersPage() {
   const { data, addReminder, deleteReminder } = useApp();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [mounted,   setMounted]   = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [newReminder, setNewReminder] = useState({
     type:    'Web Management' as 'Web Management' | 'Domain' | 'Hosting' | 'Payment',
     title:   '',
@@ -284,7 +286,7 @@ export default function RemindersPage() {
                 <Button
                   variant="ghost" size="sm"
                   className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  onClick={() => deleteReminder(reminder.id)}>
+                  onClick={() => setDeleteTarget(reminder.id)}>
                   <Trash2 size={16} />
                 </Button>
               </div>
@@ -293,9 +295,17 @@ export default function RemindersPage() {
         );
       })}
       {reminders.length === 0 && (
-        <div className="text-center py-24 bg-muted/5 border-2 border-dashed rounded-3xl">
-          <ShieldCheck size={48} className="mx-auto text-muted-foreground/30 mb-4" />
-          <p className="text-muted-foreground font-medium">No alerts in this category.</p>
+        <div className="flex flex-col items-center justify-center py-24 border-2 border-dashed rounded-3xl text-muted-foreground gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <Bell size={28} className="text-primary/40" />
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-foreground">No alerts in this category</p>
+            <p className="text-sm mt-1">Add a reminder to start tracking upcoming renewals and follow-ups.</p>
+          </div>
+          <Button variant="outline" className="gap-2 mt-1" onClick={() => setIsAddOpen(true)}>
+            <Plus size={14} /> Schedule a Reminder
+          </Button>
         </div>
       )}
     </div>
@@ -372,6 +382,15 @@ export default function RemindersPage() {
           <TabsContent value="hosting"> {mounted && <ReminderList reminders={groups.hosting} />}</TabsContent>
         </Tabs>
       </div>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={async () => { if (deleteTarget) { await deleteReminder(deleteTarget); setDeleteTarget(null); } }}
+        title="Delete this reminder?"
+        description="This alert will be permanently removed."
+        confirmLabel="Delete Reminder"
+        variant="danger"
+      />
     </DashboardLayout>
   );
 }

@@ -151,7 +151,7 @@ export default function Dashboard() {
     data.payments.filter(p => p.status === 'PENDING').reduce((s, p) => s + (p.amount || 0), 0),
   [data.payments]);
 
-  // Build alert items
+  // Build alert items — narrow deps to only the relevant slices
   const alertItems = useMemo((): AlertItem[] => {
     if (!mounted) return [];
     const today = new Date();
@@ -212,11 +212,17 @@ export default function Dashboard() {
 
     const order: Record<Urgency, number> = { overdue: 0, urgent: 1, soon: 2, ok: 3 };
     return items.sort((a, b) => order[a.urgency] - order[b.urgency]);
-  }, [data, mounted]);
+  }, [data.reminders, data.websites, data.tasks, data.payments, data.clients, mounted]);
 
-  // Stats cards
+  // Stats cards — dynamic "new this month" count
+  const newClientsThisMonth = useMemo(() => {
+    const start = new Date();
+    start.setDate(1); start.setHours(0, 0, 0, 0);
+    return data.clients.filter(c => new Date(c.createdAt) >= start).length;
+  }, [data.clients]);
+
   const stats = [
-    { label: 'Total Clients',   value: data.clients.length,                                     icon: Users,       trend: '+2 this month',                                         color: 'text-primary' },
+    { label: 'Total Clients',   value: data.clients.length,                                     icon: Users,       trend: `+${newClientsThisMonth} this month`,                                    color: 'text-primary' },
     { label: 'Active Websites', value: data.websites.length,                                     icon: Globe,       trend: 'All systems live',                                      color: 'text-emerald-500' },
     { label: 'Completed Tasks', value: data.tasks.filter(t => t.status === 'Completed').length,  icon: CheckSquare, trend: `${data.tasks.filter(t => t.status !== 'Completed').length} pending`, color: 'text-violet-500' },
     { label: 'Total Revenue',   value: `GHS ${totalRevenue.toLocaleString()}`,                   icon: CreditCard,  trend: `+GHS ${pendingRevenue.toLocaleString()} pending`,        color: 'text-amber-500' },
@@ -344,7 +350,7 @@ export default function Dashboard() {
           <Card className="lg:col-span-2 premium-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-bold">Financial Growth</CardTitle>
-              <Badge variant="secondary" className="bg-muted px-3 py-1 font-bold">FY 2024</Badge>
+              <Badge variant="secondary" className="bg-muted px-3 py-1 font-bold">FY {new Date().getFullYear()}</Badge>
             </CardHeader>
             <CardContent>
               <div className="h-[280px] w-full">

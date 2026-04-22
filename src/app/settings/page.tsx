@@ -140,6 +140,12 @@ export default function SettingsPage() {
               </p>
               <div className="space-y-2">
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-background border">
+                  <code className="text-xs font-mono text-amber-500 whitespace-nowrap pt-0.5">NEXT_PUBLIC_ADMIN_PIN</code>
+                  <span className="text-xs text-muted-foreground">
+                    The admin dashboard PIN. Change from the default and set in Vercel Dashboard env vars too.
+                  </span>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-background border">
                   <code className="text-xs font-mono text-amber-500 whitespace-nowrap pt-0.5">TGNE_ADMIN_EMAILS</code>
                   <div className="text-xs text-muted-foreground space-y-1">
                     <p>Comma-separated list of all three admin emails (the main variable):</p>

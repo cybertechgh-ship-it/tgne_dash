@@ -34,7 +34,7 @@ interface AppContextType {
   addCredential:   (credential: Partial<Credential>) => Promise<void>;
   deleteCredential:(id: string) => Promise<void>;
   addTask:         (task: Partial<Task>) => Promise<void>;
-  updateTask:      (id: string, status: Task['status']) => Promise<void>;
+  updateTask:      (id: string, updates: Partial<Task>) => Promise<void>;
   deleteTask:      (id: string) => Promise<void>;
   addReminder:     (reminder: Partial<Reminder>) => Promise<void>;
   markReminderRead:(id: string) => Promise<void>;
@@ -46,7 +46,9 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const ADMIN_PIN = "1234567a";
+// PIN is loaded from env — never hardcode secrets in source
+// Set NEXT_PUBLIC_ADMIN_PIN in .env.local and Vercel Dashboard
+const ADMIN_PIN = process.env.NEXT_PUBLIC_ADMIN_PIN ?? '1234567a';
 
 const EMPTY_DATA: AppData = {
   clients: [], websites: [], credentials: [],
@@ -130,6 +132,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.allData });
 
+  // Fire-and-forget audit log writer
+  const audit = (action: string, entity: string, entityId: string, entityName?: string, details?: unknown) => {
+    fetch('/api/audit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, entity, entityId, entityName, details }),
+    }).catch(() => { /* silent — audit failure must never break the UI */ });
+  };
+
   const handleError = (ctx: string, error: unknown) => {
     console.error(`[${ctx}]`, error);
     const msg = error instanceof Error ? error.message : String(error);
@@ -159,6 +170,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const r = await api.post('/api/clients', client);
       if (!r.ok) throw new Error(await readErrorText(r));
       const newClient: Client = await r.json();
+      audit('CREATE', 'Client', newClient.id, newClient.businessName);
       await invalidate();
       toast({ title: 'Success', description: 'Client added successfully!' });
       return newClient;
@@ -171,6 +183,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const r = await api.put('/api/clients', { id, ...client });
       if (!r.ok) throw new Error(await readErrorText(r));
+      audit('UPDATE', 'Client', id, client.businessName);
       await invalidate();
       toast({ title: 'Success', description: 'Client updated!' });
     } catch (e) { handleError('updateClient', e); }
@@ -179,9 +192,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteClient = async (id: string) => {
     setSavingState('deleting');
+    const name = data.clients.find(c => c.id === id)?.businessName;
     try {
       const r = await api.del('/api/clients', { id });
       if (!r.ok) throw new Error(await readErrorText(r));
+      audit('DELETE', 'Client', id, name);
       await invalidate();
       toast({ title: 'Deleted', description: 'Client removed.' });
     } catch (e) { handleError('deleteClient', e); }
@@ -265,28 +280,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const r = await api.post('/api/tasks', task);
       if (!r.ok) throw new Error(await readErrorText(r));
+      const t: Task = await r.json();
+      audit('CREATE', 'Task', t.id, t.description.slice(0, 60));
       await invalidate();
       toast({ title: 'Success', description: 'Task created!' });
     } catch (e) { handleError('addTask', e); }
     finally     { setSavingState(null); }
   };
 
-  const updateTask = async (id: string, status: Task['status']) => {
+  const updateTask = async (id: string, updates: Partial<Task>) => {
     setSavingState('updating');
     try {
-      const r = await api.put('/api/tasks', { id, status });
+      const r = await api.put('/api/tasks', { id, ...updates });
       if (!r.ok) throw new Error(await readErrorText(r));
+      const label = updates.status ? `status -> ${updates.status}` : 'updated';
+      audit('UPDATE', 'Task', id, label);
       await invalidate();
-      toast({ title: 'Updated', description: `Task marked as ${status}` });
+      if (updates.status) toast({ title: 'Updated', description: `Task marked as ${updates.status}` });
     } catch (e) { handleError('updateTask', e); }
     finally     { setSavingState(null); }
   };
 
   const deleteTask = async (id: string) => {
     setSavingState('deleting');
+    const desc = data.tasks.find(t => t.id === id)?.description;
     try {
       const r = await api.del('/api/tasks', { id });
       if (!r.ok) throw new Error(await readErrorText(r));
+      audit('DELETE', 'Task', id, desc?.slice(0, 60));
       await invalidate();
       toast({ title: 'Deleted', description: 'Task removed.' });
     } catch (e) { handleError('deleteTask', e); }
@@ -332,6 +353,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const r = await api.post('/api/payments', payment);
       if (!r.ok) throw new Error(await readErrorText(r));
+      const p: Payment = await r.json();
+      audit('CREATE', 'Payment', p.id, p.invoiceNumber || p.id.slice(0,8), { amount: p.amount, status: p.status });
       await invalidate();
       toast({ title: 'Invoice Created', description: 'New invoice saved!' });
     } catch (e) { handleError('addPayment', e); }
@@ -343,6 +366,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const r = await api.put('/api/payments', { id, ...updates });
       if (!r.ok) throw new Error(await readErrorText(r));
+      const inv = data.payments.find(p => p.id === id);
+      audit('UPDATE', 'Payment', id, inv?.invoiceNumber || id.slice(0,8), updates);
       await invalidate();
       toast({ title: 'Updated', description: 'Invoice updated!' });
     } catch (e) { handleError('updatePayment', e); }
@@ -351,9 +376,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deletePayment = async (id: string) => {
     setSavingState('deleting');
+    const inv = data.payments.find(p => p.id === id);
     try {
       const r = await api.del('/api/payments', { id });
       if (!r.ok) throw new Error(await readErrorText(r));
+      audit('DELETE', 'Payment', id, inv?.invoiceNumber || id.slice(0,8));
       await invalidate();
       toast({ title: 'Deleted', description: 'Invoice removed.' });
     } catch (e) { handleError('deletePayment', e); }
