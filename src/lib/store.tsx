@@ -22,7 +22,7 @@ interface AppContextType {
   isSaving: boolean;
   savingState: SavingState;
   isAuthorized: boolean;
-  verifyPin:       (pin: string) => boolean;
+  verifyPin:       (pin: string) => Promise<boolean>;
   logout:          () => void;
   addClient:       (client: Partial<Client>) => Promise<Client | null>;
   updateClient:    (id: string, client: Partial<Client>) => Promise<void>;
@@ -46,9 +46,8 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// PIN is loaded from env — never hardcode secrets in source
-// Set NEXT_PUBLIC_ADMIN_PIN in .env.local and Vercel Dashboard
-const ADMIN_PIN = process.env.NEXT_PUBLIC_ADMIN_PIN ?? '1234567a';
+// PIN verification is done server-side via /api/auth/verify-pin.
+// Never compare the PIN on the client — it must remain server-only (process.env.ADMIN_PIN).
 
 const EMPTY_DATA: AppData = {
   clients: [], websites: [], credentials: [],
@@ -110,6 +109,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return localStorage.getItem('tgne_auth_session') === 'true';
   });
 
+  // Re-validate session on mount by pinging a protected endpoint
+  React.useEffect(() => {
+    fetch('/api/clients', { method: 'GET' })
+      .then(r => {
+        if (r.status === 401) {
+          setIsAuthorized(false);
+          localStorage.removeItem('tgne_auth_session');
+        }
+      })
+      .catch(() => { /* network error — keep local state */ });
+  }, []);
+
   const [savingState, setSavingState] = React.useState<SavingState>(null);
 
   const { data = EMPTY_DATA, isLoading, error: dataError } = useQuery<AppData>({
@@ -148,13 +159,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // ── Auth ──────────────────────────────────────────────────────────────────
-  const verifyPin = (pin: string) => {
-    if (pin === ADMIN_PIN) {
-      setIsAuthorized(true);
-      localStorage.setItem('tgne_auth_session', 'true');
-      return true;
+  const verifyPin = async (pin: string): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/auth/verify-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      });
+      if (res.ok) {
+        setIsAuthorized(true);
+        localStorage.setItem('tgne_auth_session', 'true');
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
     }
-    return false;
   };
 
   const logout = () => {

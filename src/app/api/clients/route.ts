@@ -5,12 +5,23 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { db } from '@/db';
 import { clients } from '@/db/schema';
 import { createClientSchema, updateClientSchema, deleteByIdSchema } from '@/lib/validations';
 
 export const runtime = 'nodejs';
+
+// ── GET /api/clients — List all ───────────────────────────────────────────────
+export async function GET() {
+  try {
+    const allClients = await db.select().from(clients).orderBy(desc(clients.createdAt));
+    return NextResponse.json(allClients);
+  } catch (error) {
+    console.error('[GET /api/clients]', error);
+    return NextResponse.json({ error: 'Failed to fetch clients' }, { status: 500 });
+  }
+}
 
 // ── POST /api/clients — Create ────────────────────────────────────────────────
 export async function POST(req: NextRequest) {

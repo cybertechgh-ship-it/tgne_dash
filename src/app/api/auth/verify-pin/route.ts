@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { generateSessionToken, SESSION_COOKIE } from '@/lib/auth-server';
+import { generateSessionToken, getSessionSecret, SESSION_COOKIE } from '@/lib/auth-server';
 
 export const runtime = 'nodejs';
 
@@ -33,18 +33,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid PIN' }, { status: 401 });
     }
 
-    const token = await generateSessionToken();
+    let secret: string;
+    try {
+      secret = getSessionSecret();
+    } catch {
+      console.error('[verify-pin] SESSION_SECRET / ENCRYPTION_KEY env var is not set');
+      return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
+    }
+
+    const token = await generateSessionToken(secret);
 
     const res = NextResponse.json({ success: true });
     res.cookies.set(SESSION_COOKIE, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 8, // 8 hours — matches SESSION_TTL_SEC in session.ts
       path: '/',
     });
     return res;
-  } catch {
+  } catch (err) {
+    console.error('[verify-pin] Unexpected error:', err);
     return NextResponse.json({ error: 'Bad request' }, { status: 400 });
   }
 }

@@ -155,7 +155,7 @@ export default function AdminPinPage() {
     // Brief delay for the unlocking animation to play
     await new Promise(r => setTimeout(r, 900));
 
-    if (verifyPin(pin)) {
+    if (await verifyPin(pin)) {
       setIsSuccess(true);
       setIsVerifying(false);
       // Navigate after unlock animation completes
