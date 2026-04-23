@@ -63,10 +63,8 @@ export default function CredentialsPage() {
     toast({ title: 'Copied!', description: 'Password copied to clipboard.' });
   };
 
-  // Passwords stored as base64 — decode for display
-  const decodePassword = (val: string) => {
-    try { return atob(val); } catch { return val; }
-  };
+  // Passwords are already decoded server-side by /api/data before reaching the client.
+  // No additional decode needed — use cred.password directly.
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,7 +202,7 @@ export default function CredentialsPage() {
             <TableBody>
               {filteredCreds.map((cred) => {
                 const client    = data.clients.find(cl => cl.id === cred.clientId);
-                const decoded   = decodePassword(cred.password);
+                const decoded   = cred.password;
                 const isVisible = visiblePasswords[cred.id];
                 const isDeleting = deletingId === cred.id && savingState === 'deleting';
 

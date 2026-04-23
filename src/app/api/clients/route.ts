@@ -91,10 +91,15 @@ export async function PUT(req: NextRequest) {
 
     const { id, city, country, location: locOverride, ...rest } = parsed.data;
 
-    // Re-derive location if city/country changed
-    const location = locOverride ?? (city || country)
-      ? [city, country].filter(Boolean).join(', ')
-      : undefined;
+    // Re-derive location if city/country changed.
+    // Explicit parentheses to avoid the ?? / ternary precedence trap:
+    // if locOverride was supplied, use it; else build from city + country.
+    const location =
+      locOverride !== undefined
+        ? locOverride
+        : city !== undefined || country !== undefined
+          ? [city, country].filter(Boolean).join(', ')
+          : undefined;
 
     const [client] = await db
       .update(clients)

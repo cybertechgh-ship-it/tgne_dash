@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { useApp } from '@/lib/store';
-import { getCalApi } from "@calcom/embed-react";
 import { Card, CardContent } from '@/components/ui/card';
 import { CalendarDays, Sparkles, Globe, CheckSquare, ShieldCheck } from 'lucide-react';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
@@ -103,15 +102,6 @@ export default function SchedulePage() {
 
   useEffect(() => {
     setMounted(true);
-    (async () => {
-      const cal = await getCalApi();
-      cal("ui", {
-        theme: "auto",
-        styles: { branding: { brandColor: "#8b5cf6" } },
-        hideEventTypeDetails: false,
-        layout: "month_view",
-      });
-    })();
   }, []);
 
   // Build ticker items from websites (expiry) + tasks (due dates) + reminders

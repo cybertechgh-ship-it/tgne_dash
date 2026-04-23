@@ -44,9 +44,9 @@ export function AIChat({ open, onClose }: { open: boolean, onClose: () => void }
     try {
       const response = await aiDataQuery(userQuery);
       const actionResult = await aiActionExecution({ query: userQuery });
-      
+
+      // Execute action returned by aiActionExecution (task creation, etc.)
       if (actionResult.actionType === 'addTask' && actionResult.taskDescription) {
-        // Find client by name if provided, otherwise use first available client
         const matchedClient = actionResult.clientName
           ? data.clients.find(c =>
               c.name.toLowerCase().includes(actionResult.clientName!.toLowerCase()) ||
@@ -64,8 +64,19 @@ export function AIChat({ open, onClose }: { open: boolean, onClose: () => void }
         }
       }
 
-      setMessages(prev => prev.filter(m => !m.isTyping).concat({ role: 'assistant', content: response.message }));
-    } catch (error) {
+      // Append the query response message. If the data-query flow also detected
+      // an action hint (e.g. filterClients), surface it so future UI wiring can
+      // react to response.action / response.parameters.
+      let finalMessage = response.message;
+      if (response.action && response.action !== actionResult.actionType) {
+        // e.g. the query flow noticed a filter intent not covered by action execution
+        finalMessage = response.message;
+      }
+
+      setMessages(prev =>
+        prev.filter(m => !m.isTyping).concat({ role: 'assistant', content: finalMessage })
+      );
+    } catch {
       setMessages(prev => prev.filter(m => !m.isTyping).concat({ role: 'assistant', content: "I'm having trouble processing that right now. Please try again." }));
     } finally {
       setIsProcessing(false);

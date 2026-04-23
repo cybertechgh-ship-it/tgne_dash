@@ -44,6 +44,7 @@ export default function DataPage() {
   const [preview,      setPreview]      = useState<{ headers: string[]; rows: Record<string, string>[]; type: string } | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const importRowsRef = useRef<{ rows: Record<string, string>[]; type: string } | null>(null);
 
   // ─── Export handlers ─────────────────────────────────────────────────────
 
@@ -113,8 +114,8 @@ export default function DataPage() {
       setPreview({ headers: headers.slice(0, 6), rows: firstFew, type });
       setImporting(false);
 
-      // Store rows for confirm step
-      (window as any).__importRows = { rows, type };
+      // Store rows for confirm step via ref (avoids window global hack)
+      importRowsRef.current = { rows, type };
 
     } catch (e) {
       toast({ variant: 'destructive', title: 'Parse failed', description: String(e) });
@@ -123,7 +124,9 @@ export default function DataPage() {
   };
 
   const confirmImport = async () => {
-    const { rows, type } = (window as any).__importRows ?? {};
+    const stored = importRowsRef.current;
+    const rows = stored?.rows;
+    const type = stored?.type;
     if (!rows || !type || type === 'unknown') {
       toast({ variant: 'destructive', title: 'Cannot import', description: 'Unrecognised file format. Check column headers match the export template.' });
       return;
@@ -185,7 +188,7 @@ export default function DataPage() {
     setImportStatus({ rows: count, errors, done: true });
     setPreview(null);
     setImporting(false);
-    (window as any).__importRows = null;
+    importRowsRef.current = null;
 
     toast({
       title: `Import complete`,
@@ -385,7 +388,7 @@ export default function DataPage() {
                       {preview.type}
                     </Badge>
                   </CardTitle>
-                  <button onClick={() => { setPreview(null); (window as any).__importRows = null; }}
+                  <button onClick={() => { setPreview(null); importRowsRef.current = null; }}
                     className="p-1 rounded-lg hover:bg-muted transition-colors">
                     <X size={15} className="text-muted-foreground" />
                   </button>
@@ -424,7 +427,7 @@ export default function DataPage() {
                       disabled={importing}
                     >
                       {importing ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
-                      Confirm Import ({(window as any).__importRows?.rows?.length ?? 0} rows)
+                      Confirm Import ({importRowsRef.current?.rows?.length ?? 0} rows)
                     </Button>
                   )}
                 </CardContent>

@@ -24,6 +24,7 @@ import {
   Mail,
   Loader2,
   Settings2,
+  Database,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ const navItems = [
   { name: 'Tasks',       href: '/tasks',       icon: CheckSquare },
   { name: 'Reminders',   href: '/reminders',   icon: Bell },
   { name: 'Schedule',    href: '/schedule',    icon: CalendarDays },
+  { name: 'Data',        href: '/data',        icon: Database },
   { name: 'Audit Log',   href: '/audit',       icon: Shield },
   { name: 'Settings',    href: '/settings',   icon: Settings2 },
 ];
